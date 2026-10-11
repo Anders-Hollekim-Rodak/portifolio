@@ -272,3 +272,123 @@ run the largest task during loading grew from about 3 s to 3.5–4.3 s
   could be tuned.
 - **The site's own buttons** (sound, arrows) show through the doorway
   from the passage on.
+
+## Concept B, the liquid sanctuary (2026-10-12)
+
+**The brief.** The user asked for Astra's visual review to be continued,
+going fully with Concept B. Keep:
+
+- the silhouette, the rounded body and the attached pointed tower;
+- the central entrance;
+- the teal, purple and gold palette.
+
+Answer Astra's findings:
+
+- the glass had too little material definition;
+- the windows were painted on, not recessed;
+- the entrance and landing read as a model;
+- there was no material hierarchy beside the interior's.
+
+**Where.** The branch is `feature/exterior-visual-upgrade` (worktree
+`verification/exterior-visual-upgrade`), from `main` at `11e0c10`. Only
+`loading-living-worker.js` changed.
+
+**What it is.** The shell of living glass is held in a frame of the room's
+own materials: its bronze (`architecturalMetal`) and its warm grey dressed
+stone. Each piece grows with the part it belongs to. It is drawn in its
+material (`mat`): 0 glass, 1 bronze, 2 stone, 3 a lantern's lit glass.
+
+- **A ribbed dome.**
+  - Twelve flat bronze ribs stand over the chamber's corners, narrowing to
+    a ring at the crown.
+  - Bands run where the gallery's floor (2.85 m) and the vault's springing
+    (3.99 m) are inside. The glass's string course moved up to 2.85 m from
+    2 m to carry the lower band.
+- **A stone socle** runs round the foot of the body and of the tower, from
+  under the floor to 0.64 m.
+  - It has a weathered cap, one course of ashlar and a flared foot.
+  - The glass is held still at the socle and at the crown, and breathes
+    between them.
+- **Windows sunk into the glass.** Each window is a niche: a stone reveal,
+  and behind the face the pane, both with parallax. Each has a bronze frame
+  and a stone sill.
+  - **A clerestory** over the gallery, in nine bays (2.98–3.78 m). It is
+    leaded in diamonds and lit warm.
+  - **The room's great window** behind (bay 0), with the room's own
+    tracery (`room-architecture.js`). Through its clear glass the room is
+    seen: its lantern high and the candles' light low, each at its depth.
+  - **The tower's three lancets**, where the room has them
+    (`room-tower.js`), stepped up round the drum over the stair.
+    - They used to be painted on the side facing the door, and leaned
+      with the tower's twist.
+    - The tower still turns as it rises. The lancets' frames and niches
+      are placed so they stand upright once it has grown (`turned`).
+- **The portal.**
+  - The porch's face is now stone: voussoirs over coursed jambs.
+  - Two stone orders step out round the doorway's bronze roll (the old
+    `FRAME` bead), on colonnettes with bronze capitals and stone bases.
+- **The terrace** replaces the glass tongue (`platform`).
+  - It is a stone slab at the floor's level: flags inside a kerb, with a
+    rounded end.
+  - Under it is rough rock, faintly veined with the glass's light.
+  - A channel of the living glass runs down its middle (`runner`), its
+    light running in to the door.
+  - The room's warm light falls on the paving before the door.
+  - Two bronze lanterns stand at its outer end.
+- **The glass.**
+  - Its surface wavers.
+  - It reflects the night (the gate's void).
+  - Each cell of the dome is a little different, as blown glass is.
+  - It darkens into its ribs, bands and socle, and gathers light at its
+    foot.
+- **The core** sits in a floating bronze setting: a ring and six prongs.
+
+**Unchanged:**
+
+- the doorway, the porch's outline, the passage, the curtains and the
+  hole;
+- the flight and the walk in;
+- the formation's timing.
+
+The silhouette gains only the socle's lip, the finial's spike and the
+core's setting.
+
+**The cost, and how it was kept down.**
+
+- **Triangles** 81 k → 155 k; draw calls 10 → 21. GPU time per frame at
+  1600×1000 read 1.2 ms → 1.4 ms (one timer sample each).
+- **The first frame** (a cold shader cache, time from the worker's
+  creation, headless, D3D11, alternating with `main`):
+  - The first version took 2.9 s, against `main`'s 1.1 s. Most of that
+    was compiling one large fragment shader.
+  - Now: about 1.15 s, against 0.9 s.
+- **Three changes** brought it there:
+  - **One niche.** The nearest window is found first and drawn by a single
+    niche in the shader.
+  - **Two programs.** The glass (`FRAGMENT`) and the fittings (`FITTINGS`:
+    bronze, stone and the lanterns) are compiled separately, and only then
+    asked whether they linked.
+  - **The fittings come after the first frame** (`fit`). They are built
+    and compiled once the first frame is out, because the formation begins
+    with the core alone. They are drawn from when their program has
+    compiled, at the latest by about 1 s of the formation, when the dome
+    is still a seed at the core. A frame asked for on its own (a settled
+    view, a seek, a snapshot, reduced motion) waits for them.
+
+**Verified** (headless, mains power):
+
+- `review/exterior-visual-upgrade/capture.mjs` (Astra's views): no errors
+  or warnings. Before and after are in
+  `verification/exterior-visual-upgrade/before/` and `after/`, side by
+  side in `compare.html` there.
+- `living-exterior-check`, `living-lifecycle-check` (all nine cases) and
+  `loading-portal-check` pass.
+
+**Open.**
+
+- **Visual review by the user.**
+- **The interior has no clerestory.** Inside, the gallery's walls are
+  blind where the windows are outside.
+- **The lanterns light the paving only.** They have no halo.
+- **Inside, the passage still ends in the oak door**, while the visitor
+  comes in through curtains (as before).
