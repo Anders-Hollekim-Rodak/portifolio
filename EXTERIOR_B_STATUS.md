@@ -91,3 +91,25 @@ Screenshots: `verification/exterior-visual-upgrade/codex-final/gate-front-curren
 3. Test a physical phone and normal visible browser on target hardware. Headless viewport emulation does not establish a mobile thermal/memory budget. Long-session memory stability has not been profiled in this exterior pass.
 4. Existing world-consistency limitations remain: decorative chamber clerestory windows do not have matching interior openings; the outer curtain and interior closed door are different surfaces; some room UI appears during the final passage, while still inert. Fixing these requires coordinated scope with the interior/entry owner.
 5. Do not merge/push/deploy until the user reviews this branch. Main and the other worktrees remain separate.
+
+## Final verification checkpoint
+
+Runtime implementation commit: **330e5ffa680c889c615ccc72f6873b22f1b6414c**. Final runtime source SHA-256 (normalized LF, trimmed): **f42853bdd6e2fba14beb00bfc0c6edb52724cbeca1fb7b5ecf10508fc1454965**. A following documentation-only commit records the final test results; use this branch's latest HEAD. The working tree was clean before that documentation update and is checked again after committing it.
+
+Final-source checks completed:
+
+- JavaScript syntax and `git diff --check`: pass.
+- Multi-view desktop/mobile-format screenshots and actual room/orb captures: pass; `verification/exterior-visual-upgrade/codex-final/inspection.json` has zero errors/warnings and the final source hash above.
+- Full camera-path sequence: pass. Real readiness precedes entry, input stays inert until completion, the camera hands back at the existing entry, and worker/observer/listeners are disposed. Exact published `pose`, `walked` and `setEntry` function bodies were compared and are unchanged. The sequence test seeks through poses, so its frame numbers are not a natural-playback FPS benchmark.
+- Lifecycle suite: pass. Cold/warm actual room, fast/slow readiness, retry and degraded guard, mobile/landscape resize, reduced motion, absent OffscreenCanvas, missing gate script, no room WebGL, missing orb module and missing exterior module. Expected missing-resource failures are injected deliberately. Saved cases record zero unexpected errors. Summary: `verification/living-exterior/codex-final/lifecycle-summary.json`.
+- Natural full-entry lifecycle runs: cold readiness 11,039 ms / formation 13,703 ms / entered 24,738 ms; warm 7,143 / 13,056 / 24,087 ms. These include room initialization and the 11-second entry; they are not loading improvements. Main-thread long tasks of 3,052 ms cold and 1,041 ms warm were recorded. Their attribution was not profiled in this exterior pass. Do not claim those existing room costs are solved.
+- Final shader (including curtain clipping) confirmation: desktop GPU median **6.36 ms**, p95 **8.08 ms**, one-time build **1,420 ms**, first draw **1,348 ms**; small viewport GPU median **3.97 ms**, p95 **9.27 ms**, build **1,091 ms**, first draw **183 ms**. Idle frame median **33.3 ms**, p95 **33.5 ms** in both. 11/12 GPU samples, zero console errors or warnings. Raw JSON: `verification/exterior-visual-upgrade/codex-final-performance/performance.json`. The higher p95 values are retained rather than hidden; this small sample does not establish a guaranteed frame-time ceiling.
+- Local gallery image paths resolve. Preview helper serves only localhost. No merge, push, deployment or main-branch edit.
+
+Changed files in this pass: `loading-living-worker.js`; `EXTERIOR_B_STATUS.md`; review-only `CONCEPTS.md`, `capture.mjs`, `perf.mjs`, `serve.mjs`, `index.html`, `concept-a.png`, `concept-b.png` and `verification-summary.json` under `review/exterior-visual-upgrade/`. No review PNG is loaded by the actual website.
+
+The visual pass is ready for review. The one-time mesh-build pause and the remaining material gap from concept art are explicitly unresolved; this is not marked as production-ready.
+
+## Connection-resume verification, 2026-10-13
+
+At the user's request, no implementation was repeated and no new visual changes were made. Branch and implementation commit were rechecked; the runtime exactly matches `330e5ff` and the final SHA-256 above. Syntax checks for the worker and review tools passed. All five saved performance runs and nine saved lifecycle cases contain no unexpected console errors; integration guard and disposal assertions remain satisfied. The interrupted local HTTP check was completed after restarting the local server: gallery, concept image and final screenshot return HTTP 200, and the served worker hash matches the verified source. Only this report and the compact `verification-summary.json` were committed afterward. No merge, push or deployment.
