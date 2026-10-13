@@ -26,11 +26,11 @@ const TOWER = [4.926*S, 0, -2.844*S], TOWER_R = 2.05*S, TOWER_BASE = FLOOR-.3, T
 // peak at 2.54 m, drawn as the room draws it, so the two meet exactly. It is
 // at the end of the room's passage (the wall, and a metre beyond it): 5.35 m
 // from the chamber's centre (`plane`), the face of a porch grown out of the
-// body (PORCH), whose passage runs back into the body to `back`.
+// body, whose passage runs back into the body to `back`.
 const DOOR = {a:.74*S, sill:FLOOR, shoulder:at(1.26), peak:at(2.54), plane:5.35*S, back:3.7*S};
-const PORCH = {a:1.18*S, sill:FLOOR, shoulder:at(1.8), peak:at(3.5)}, FRAME = {a:.86*S, sill:FLOOR, shoulder:at(1.26), peak:at(2.72)};
+const FRAME = {a:.86*S, sill:FLOOR, shoulder:at(1.26), peak:at(2.72)};
 const control = w => w.shoulder + .6*(w.peak-w.shoulder);
-// The terrace before the door: dressed stone, its top at the floor's level.
+// The mineral landing before the door, its top at the room floor level.
 const PLATFORM = {z:DOOR.plane-.01, length:1.72};
 // The room's terms (scene-camera.js wayIn and entryView): x right, y up from
 // the floor and z toward the door, in metres, with the table at the origin
@@ -45,7 +45,7 @@ let entry = {x:0, y:1.7, z:3.4, yaw:0, tilt:4.8, lens:.5, fov:72};
 // GLSL literals.
 // (Negative values in parentheses: "y--0.5" would read as a decrement.)
 const f = v => (v<0?'('+(+v).toFixed(4)+')':(+v).toFixed(4)), v3 = a => 'vec3('+a.map(f).join(',')+')';
-let gl, pg, meshes, canvas, width=1,height=1,screenW=1,screenH=1,dpr=1;
+let gl, pg, meshes, canvas, noiseTexture, width=1,height=1,screenW=1,screenH=1,dpr=1;
 let disposed=false, paused=false, reduced=false, first=true, formed=false, flight=null, sentView='', lighter=false;
 let time=0,last=null,rate=1,handle=0, lastDraw=-100,phase='',statsAt=0;
 let metrics={frames:0,frameGaps:[],cpuMs:[],gpuMs:[],triangles:0,drawCalls:0}, query=null, ext=null;
@@ -75,25 +75,20 @@ function lathe(radius,top,bottom,rows,segments,center=[0,0,0]){
 function bodyRadius(y){
  if(y>.38)return 1.07*Math.sqrt(Math.max(0,1-((y-.38)/.91)**2));
  if(y>-.79){
-  const belly=1.07-.12*((y-.38)/1.17)**2;
-  // A string course where the gallery's floor is inside (2.85 m), and a lip
-  // at the floor's, inside the socle.
-  const lip=.025*Math.exp(-(((y-.0494)/.045)**2))+.035*Math.exp(-(((y+.77)/.05)**2));
-  return belly+lip;
+  return 1.07-.12*((y-.38)/1.17)**2;
  }
  const u=clamp((-y-.79)/.5);
- return .95*Math.pow(1-u,.68);
+ return .95*Math.sqrt(Math.max(0,1-u*u));
+}
+// Broad diagonal pressure folds; shared with the window trim placement.
+function bodyFold(a,y){
+ const r=bodyRadius(clamp(y,-1.288,1.29));
+ return .012*r*Math.sin(a*3+y*1.7)*Math.exp(-Math.pow((y+.1)/1.35,4))+.052*Math.exp(-Math.pow((y-(.01-.50*Math.cos(a)))/.15,2))+.028*Math.exp(-Math.pow((y-(-.83+.12*Math.sin(a+1.4)))/.15,2));
 }
 function towerRadius(y){
- // The roof: a tall, concave spire flaring out over the drum at its eaves.
- if(y>TOWER_ROOF)return TOWER_R*1.13*Math.pow(clamp((TOWER_TIP-y)/(TOWER_TIP-TOWER_ROOF)),1.75)+.003;
- // Below the floor it rounds off underneath, as the body does.
- if(y<FLOOR)return TOWER_R*1.03*Math.pow(clamp((y-TOWER_BASE)/(FLOOR-TOWER_BASE)),.68);
- // The drum, narrowing a little as it rises, with a band where the upper
- // floor is inside (2.85 m) and a cornice under the eaves.
- const u=clamp((y-FLOOR)/(TOWER_ROOF-FLOOR));
- const band=.016*Math.exp(-(((y-at(2.85))/.018)**2)),cornice=.024*Math.exp(-(((y-TOWER_ROOF+.035)/.03)**2));
- return TOWER_R*(1.03-.07*u)+band+cornice;
+ if(y>TOWER_ROOF-.20){const t=clamp((y-(TOWER_ROOF-.20))/(TOWER_TIP-TOWER_ROOF+.20));return TOWER_R*.985*Math.pow(1-smooth(t),1.15)+.0005;}
+ if(y<FLOOR){const u=clamp((y-TOWER_BASE)/(FLOOR-TOWER_BASE));return TOWER_R*1.03*Math.sqrt(Math.max(0,1-(1-u)*(1-u)));}
+ const u=clamp((y-FLOOR)/(TOWER_ROOF-.20-FLOOR));return TOWER_R*(1.03-.045*u)+.0005;
 }
 // A pointed arch as the room draws it (room-chamber.js outline): from the
 // sill's left end up the jamb, over the two quadratic curves and down.
@@ -115,16 +110,16 @@ function extrude(pts,z0,z1,into,mesh={p:[],n:[],ix:[]}){
  }
  return mesh;
 }
-// The porch: its outer surface of glass from inside the body out to the
-// door's face, or (face) that face, of stone: a ring between its outline and
-// the doorway's.
-function porch(face){
- const outer=arch(PORCH),inner=arch(DOOR),mesh=face?{p:[],n:[],ix:[]}:extrude(outer,DOOR.back,DOOR.plane,false);
- if(!face)return mesh;
- const b=mesh.p.length/3;
- for(let i=0;i<outer.length;i++){mesh.p.push(outer[i][0],outer[i][1],DOOR.plane,inner[i][0],inner[i][1],DOOR.plane);mesh.n.push(0,0,1,0,0,1);}
- for(let i=0;i<outer.length-1;i++){const a=b+2*i;mesh.ix.push(a,a+1,a+2,a+2,a+1,a+3);}
- return mesh;
+// Nested, polished mineral folds grow around the unchanged doorway aperture.
+function porch(){
+ const inner=arch(DOOR,36),outer=arch({a:1.54*S,sill:FLOOR,shoulder:at(1.95),peak:at(3.8)},36),rows=24,cols=inner.length-1,p=[],n=[],ix=[];
+ for(let j=0;j<=cols;j++)for(let i=0;i<=rows;i++){
+  const t=i/rows,b=smooth(t),x=inner[j][0]+(outer[j][0]-inner[j][0])*b,y=inner[j][1]+(outer[j][1]-inner[j][1])*b;
+  p.push(x,y,DOOR.plane+.013-.27*t*t+.019*Math.sin(t*Math.PI*5)*Math.sin(t*Math.PI));n.push(0,0,1);
+ }
+ for(let j=0;j<cols;j++)for(let i=0;i<rows;i++){const a=j*(rows+1)+i,b=a+rows+1;ix.push(a,a+1,b,b,a+1,b+1);}
+ n.fill(0);for(let k=0;k<ix.length;k+=3){const [a,b,c]=ix.slice(k,k+3),v=cross(sub(p.slice(b*3,b*3+3),p.slice(a*3,a*3+3)),sub(p.slice(c*3,c*3+3),p.slice(a*3,a*3+3)));for(const q of[a,b,c])for(let d=0;d<3;d++)n[q*3+d]+=v[d];}
+ for(let k=0;k<n.length;k+=3){const v=norm(n.slice(k,k+3));n[k]=v[0];n[k+1]=v[1];n[k+2]=v[2];}return{p,n,ix};
 }
 // The passage through it: the doorway's outline back into the body, closed
 // there in the same dark stone.
@@ -137,7 +132,7 @@ function passage(){
 }
 // The doorway's frame: a round moulding standing on the porch's face.
 function frame(){
- const pts=arch(FRAME),p=[],n=[],ix=[],rings=10,r=.021;
+ const pts=arch(FRAME),p=[],n=[],ix=[],rings=16,r=.009;
  pts.forEach(([x,y],i)=>{
   const b=pts[Math.max(0,i-1)],a=pts[Math.min(pts.length-1,i+1)],nn=norm([a[1]-b[1],b[0]-a[0],0]);
   for(let k=0;k<=rings;k++){const t=k/rings*TAU,c=Math.cos(t),s=Math.sin(t);p.push(x+nn[0]*r*c,y+nn[1]*r*c,DOOR.plane+.004+r*s);n.push(nn[0]*c,nn[1]*c,s);}
@@ -165,44 +160,34 @@ function gridNormals(p,rows,cols,inside){
  }
  return n;
 }
-// The terrace before the door: a slab of dressed stone, its paved top at the
-// floor's level (the walk in stands on it) with a rounded edge, and under it
-// rough rock tapering into the void as the body's keel does. It runs back
-// under the porch into the socle, widens, and ends round.
+// A level mineral tongue with a rounded polished lip and shallow underside.
+// Its footprint and walking surface preserve the published entrance path.
 const terraceHalf=v=>{v=clamp(v);return Math.max(.002,(.38+.13*Math.sin(Math.min(v/.6,1)*Math.PI/2))*(v>.62?Math.sqrt(Math.max(0,1-((v-.62)/.38)**2)):1));};
 function platform(){
  const p=[],ix=[],rows=64,cols=72,{z,length}=PLATFORM,from=DOOR.back+.04,mid=FLOOR-.03,shape=[];
  for(let i=0;i<=rows;i++){
   const zz=from+(z+length-from)*i/rows,v=clamp((zz-z)/length),w=terraceHalf(v);
-  const deep=(.10+.22*Math.sin(Math.min(1,v*1.1)*Math.PI*.9))*Math.min(1,w/.3)+.03;
+  const deep=(.075+.085*Math.sin(Math.min(1,v*1.1)*Math.PI*.9))*Math.min(1,w/.3)+.02;
   shape.push([0,mid-deep*.3,zz]);
   for(let j=0;j<=cols;j++){
    const a=j/cols*TAU,c=Math.cos(a),s=Math.sin(a);
    if(s>=0){p.push(w*Math.sign(c)*Math.pow(Math.abs(c),.42),mid+.03*Math.pow(s,.16),zz);continue;}
-   const rough=1+(-s)*(.2*Math.sin(v*23+a*5)*Math.sin(v*9-a*3)+.1*Math.sin(v*41+a*11));
+   const rough=1+.018*Math.sin(v*9+a*3);
    p.push(w*Math.sign(c)*Math.pow(Math.abs(c),.7),mid-deep*Math.pow(-s,.85)*rough,zz);
   }
  }
  for(let i=0;i<rows;i++)for(let j=0;j<cols;j++){const a=i*(cols+1)+j,b=a+cols+1;ix.push(a,b,a+1,a+1,b,b+1);}
  return{p,n:gridNormals(p,rows,cols,i=>shape[i]),ix};
 }
-// ---- Concept B, the liquid sanctuary: the shell of living orb-glass held in
-// a frame of the room's own materials (room-chamber.js, room-scene.js): a
-// ribbed dome, its bronze ribs over the chamber's corners meeting in a ring
-// at its crown; bronze bands where the gallery's floor and the vault's
-// springing are; a stone socle it stands in; a portal of stone orders on
-// colonnettes; windows sunk into the glass in bronze frames on stone sills;
-// a bronze setting under the core; lanterns on the terrace. Each piece grows
-// with the part it belongs to (deform's part) and is drawn in its material
-// (mat: 0 glass, 1 bronze, 2 stone, 3 a lantern's lit glass). Those on the
-// body are built in its own coordinates (0.291 to a metre upward, before
-// squash), so they grow and breathe with it.
+// Concept B: a continuous orb-glass body and tower, mineral window reveals,
+// a grown nested entrance and a restrained bronze landing edge. Fittings use
+// the existing room scale, formation and shared breathing transform.
 const BODY_UP=.291,OLD=m=>FLOOR+m*BODY_UP,DEG=Math.PI/180;
 // Bay k's direction in plan (room-chamber.js): -90 + 30k degrees; the door's
 // is bay 6 (+z), the great window's bay 0, the tower's bay 2.
 const BAY=k=>(-90+30*k)*DEG;
-const onBody=(a,m,out=0)=>{const y=OLD(m),r=bodyRadius(y)+out;return[r*Math.cos(a),y,r*Math.sin(a)];};
-const bodyNormal=(a,m)=>{const y=OLD(m),e=.002,slope=(bodyRadius(y+e)-bodyRadius(y-e))/(2*e);return norm([Math.cos(a),-slope,Math.sin(a)]);};
+const onBody=(a,m,out=0)=>{const y=OLD(m),r=bodyRadius(y)+bodyFold(a,y)+out;return[r*Math.cos(a),y,r*Math.sin(a)];};
+const bodyNormal=(a,m)=>norm(cross(sub(onBody(a+.002,m),onBody(a-.002,m)),sub(onBody(a,m+.002),onBody(a,m-.002)))).map(v=>-v);
 // Grown, the tower is turned as it rises (deform: 1.5 radians over its
 // height) and drawn out to an ellipse. Where a point on its drum is built, to
 // be seen in direction a; and how far round the drum a unit there is.
@@ -213,36 +198,19 @@ function turned(a,y){
 }
 const onTower=(a,y,out=0)=>{const {phi}=turned(a,y),r=towerRadius(y)+out;return[TOWER[0]+r*Math.cos(phi),y,TOWER[2]+r*Math.sin(phi)];};
 const towerNormal=(a,y)=>{const {phi}=turned(a,y);return[Math.cos(phi),0,Math.sin(phi)];};
-// A point at the one scale, given in the body's coordinates (the core is
-// moved there, not squashed, and its setting must meet it).
-const unsquash=([x,y,z])=>[x,FLOOR+(y-FLOOR)/K,z];
-// The windows, metres: a clerestory over the gallery in nine bays, and the
+
+// The windows, metres: a clerestory over the gallery in four bays, and the
 // room's great window behind (room-chamber.js, bay 0).
-const CLERESTORY={a:.24,sill:2.98,shoulder:3.36,peak:3.78},GREAT={a:.82,sill:.8,shoulder:3.6,peak:4.9};
-const WINDOWS=[...[1,3,4,5,7,8,9,10,11].map(k=>({k,...CLERESTORY})),{k:0,...GREAT}];
+const CLERESTORY={a:.30,sill:2.70,shoulder:3.50,peak:4.08},GREAT={a:.82,sill:.8,shoulder:3.6,peak:4.9};
+const WINDOWS=[...[3,5,7,9].map(k=>({k,...CLERESTORY})),{k:0,...GREAT}];
 // The tower's lancets, where the room has them (room-tower.js): stepped up
 // round its drum over the stair, the directions they face from its axis.
 const TOWER_WINDOWS=[[45.114,1.13],[3.514,1.7],[-38.086,2.46]].map(([d,sill])=>({at:d*DEG,a:.18,sill,shoulder:sill+1.5,peak:sill+1.85}));
 // A frame's outline, pad metres outside an opening's (as the room's contour).
 const around=(w,pad)=>({...w,a:w.a+pad,peak:w.peak+pad});
-// Two lanterns at the terrace's outer end, either side of the way in (x, z).
-const LANTERNS=[-1,1].map(side=>[side*1.45*S,DOOR.plane+4.6*S]);
+
 const w4=w=>'vec4('+[w.a,w.sill,w.shoulder,w.peak].map(f).join(',')+')';
-// A round moulding along a line of points (its section carried along it).
-function tube(pts,radius,rings=8,mesh={p:[],n:[],ix:[]}){
- const b=mesh.p.length/3;let u=null;
- for(let i=0;i<pts.length;i++){
-  const t=norm(sub(pts[Math.min(pts.length-1,i+1)],pts[Math.max(0,i-1)]));
-  u=u?norm(sub(u,t.map(v=>v*(u[0]*t[0]+u[1]*t[1]+u[2]*t[2])))):norm(cross(t,Math.abs(t[1])<.9?[0,1,0]:[1,0,0]));
-  const v=cross(t,u);
-  for(let k=0;k<=rings;k++){
-   const q=k/rings*TAU,c=Math.cos(q),s=Math.sin(q),d=[u[0]*c+v[0]*s,u[1]*c+v[1]*s,u[2]*c+v[2]*s];
-   mesh.p.push(pts[i][0]+d[0]*radius,pts[i][1]+d[1]*radius,pts[i][2]+d[2]*radius);mesh.n.push(...d);
-  }
- }
- for(let i=0;i<pts.length-1;i++)for(let k=0;k<rings;k++){const a=b+i*(rings+1)+k,c=a+rings+1;mesh.ix.push(a,c,a+1,a+1,c,c+1);}
- return mesh;
-}
+
 // A flat moulding along a line of points on a surface (outs: the surface's
 // outward direction at each), half hw wide across it (or hw(share of the way
 // along)) and th thick, standing a little proud of it; e < 1 squares its
@@ -266,29 +234,8 @@ function merge(into,mesh){
  for(const v of mesh.p)into.p.push(v);for(const v of mesh.n)into.n.push(v);for(const i of mesh.ix)into.ix.push(i+b);
  return into;
 }
-// The directions round an axis, in runs broken where an opening is (gaps:
-// [direction, half-angle]); draw(run) for each.
-function ring(gaps,draw,segments=168){
- const open=a=>gaps.some(([c,h])=>Math.abs(Math.atan2(Math.sin(a-c),Math.cos(a-c)))<h);
- let run=[];const flush=()=>{if(run.length>1)draw(run);run=[];};
- const start=gaps.length?gaps[0][0]:0;
- for(let i=0;i<=segments;i++){const a=start+i/segments*TAU;if(open(a))flush();else run.push(a);}
- flush();
-}
-// A short turned piece (capital, base, knop) on a vertical axis: a profile
-// closed at both ends.
-const turnedPiece=(x,z,y0,y1,radius,segments=16)=>lathe(y=>radius*Math.pow(Math.max(0,1-Math.abs((2*y-y0-y1)/(y1-y0))**6),.25),y1,y0,8,segments,[x,0,z]);
-// The socle's section: a weathered top running out of the glass, a rounded
-// cap, a slightly battered face, a flared foot, and back into the glass under
-// it (m: metres from the floor; body: the glass's radius there).
-function socle(m,body,face){
- if(m>=.58)return body+(face-body)*smooth((.64-m)/.06);
- if(m>=.46)return face+.016*Math.sqrt(Math.max(0,1-((m-.52)/.06)**2));
- if(m>=-.26)return face+.008*clamp((.46-m)/.72);
- if(m>=-.34)return face+.008+.02*Math.sqrt(Math.max(0,1-((m+.30)/.04)**2));
- return body+(face+.008-body)*smooth((m+.4)/.06);
-}
-// A window's bronze frame round its opening and its stone sill, on a wall
+
+// A window's moulding and sill, on a wall
 // (place(u, m, out): the point u metres across and m up, out proud of the
 // wall; normal(u, m): the wall's outward direction).
 function windowFrame(w,place,normal,bronze,stone,pad,hw,th){
@@ -297,102 +244,19 @@ function windowFrame(w,place,normal,bronze,stone,pad,hw,th){
  const sill=Array.from({length:13},(_,i)=>[-(w.a+pad+.08)+2*(w.a+pad+.08)*i/12,w.sill-.05]);
  strap(sill.map(([u,m])=>place(u,m,.002)),sill.map(([u,m])=>normal(u,m)),.013,.011,stone,.45,10);
 }
-// The body's frame (bronze) and socle (stone).
+// Mineral window frames with narrow bronze sills.
 function sanctuary(){
- const bronze={p:[],n:[],ix:[]},stone={p:[],n:[],ix:[]},top=7.08;
- // The dome's twelve ribs, from the springing band to a ring round its crown,
- // narrowing as they rise; drawn by angle over the dome, so they curve evenly.
- const dome=Math.asin(clamp((OLD(top)-.38)/.91));
- for(let k=0;k<12;k++){
-  const a=BAY(k)+15*DEG,ms=Array.from({length:41},(_,i)=>(.38+.91*Math.sin(dome*i/40)-FLOOR)/BODY_UP);
-  strap(ms.map(m=>onBody(a,m)),ms.map(m=>bodyNormal(a,m)),t=>.017-.008*t,.006,bronze,.6);
- }
- tube(Array.from({length:49},(_,i)=>{const a=i/48*TAU,r=bodyRadius(OLD(top))+.006;return[r*Math.cos(a),OLD(top)+.003,r*Math.sin(a)];}),.012,8,bronze);
- // Bands where the gallery's floor (2.85 m, on the glass's string course)
- // and the vault's springing are; the great window breaks both, the porch's
- // roof the lower.
- const great=[BAY(0),12.5*DEG];
- for(const [m,gaps] of [[2.85,[great,[BAY(6),9*DEG]]],[3.99,[great]]])
-  ring(gaps,run=>strap(run.map(a=>onBody(a,m)),run.map(a=>bodyNormal(a,m)),.013,.006,bronze,.6));
- // The windows' frames and sills.
- for(const w of WINDOWS){
-  const a0=BAY(w.k),angle=(u,m)=>a0+u*S/bodyRadius(OLD(m));
-  windowFrame(w,(u,m,out)=>onBody(angle(u,m),m,out),(u,m)=>bodyNormal(angle(u,m),m),bronze,stone,w.k?.06:.085,w.k?.02:.026,w.k?.006:.007);
- }
- // The core's setting: a ring under it and six prongs holding it, floating
- // with it (built at the one scale, see unsquash).
- const [cx,cy,cz]=CORE_AT,under=cy-.118;
- tube(Array.from({length:49},(_,i)=>{const a=i/48*TAU;return unsquash([cx+.135*Math.cos(a),under,cz+.135*Math.sin(a)]);}),.01,7,bronze);
- for(let k=0;k<6;k++){
-  const lon=k/6*TAU;
-  tube(Array.from({length:10},(_,i)=>{const lat=(-42+56*i/9)*DEG,R=.18;return unsquash([cx+R*Math.cos(lat)*Math.cos(lon),cy+R*Math.sin(lat),cz+R*Math.cos(lat)*Math.sin(lon)]);}),.0065,6,bronze);
- }
- // The socle: dressed stone round the shell's foot, from under the floor to
- // 0.64 m (the doorway is cut through it as through the glass).
- merge(stone,lathe(y=>socle((y-FLOOR)/BODY_UP,bodyRadius(y),1.03),OLD(.64),OLD(-.4),40,168));
+ const bronze={p:[],n:[],ix:[]},stone={p:[],n:[],ix:[]};
+ for(const w of WINDOWS){const a0=BAY(w.k),angle=(u,m)=>a0+u*S/bodyRadius(OLD(m));windowFrame(w,(u,m,out)=>onBody(angle(u,m),m,out),(u,m)=>bodyNormal(angle(u,m),m),stone,bronze,w.k?.065:.085,w.k?.016:.022,.006);}
  return{bronze,stone};
 }
-// The tower's fittings: bronze bands (the lower broken by its lancets), the
-// lancets' frames and sills, a finial, and its socle.
+// The tower's three recessed lancet frames.
 function towerFittings(){
- const bronze={p:[],n:[],ix:[]},stone={p:[],n:[],ix:[]},band=at(2.85),eaves=TOWER_ROOF-.03;
- const drum=y=>a=>[TOWER[0]+towerRadius(y)*Math.cos(a),y,TOWER[2]+towerRadius(y)*Math.sin(a)];
- ring(TOWER_WINDOWS.map(w=>{const {phi,span}=turned(w.at,band);return[phi,(w.a+.14)*S/span];}),
-  run=>strap(run.map(drum(band)),run.map(a=>[Math.cos(a),0,Math.sin(a)]),.012,.006,bronze,.6),112);
- ring([],run=>strap(run.map(drum(eaves)),run.map(a=>[Math.cos(a),0,Math.sin(a)]),.012,.006,bronze,.6),112);
- for(const w of TOWER_WINDOWS){
-  const angle=(u,m)=>w.at+u*S/turned(w.at,at(m)).span;
-  windowFrame(w,(u,m,out)=>onTower(angle(u,m),at(m),out),(u,m)=>towerNormal(angle(u,m),at(m)),bronze,stone,.055,.017,.006);
- }
- // The finial: a bronze knop on the spire's tip, and a spike.
- merge(bronze,turnedPiece(TOWER[0],TOWER[2],TOWER_TIP-.008,TOWER_TIP+.036,.019,14));
- tube([[TOWER[0],TOWER_TIP+.03,TOWER[2]],[TOWER[0],TOWER_TIP+.13,TOWER[2]]],.004,6,bronze);
- merge(stone,lathe(y=>socle((y-FLOOR)/S,towerRadius(y),TOWER_R*1.03+.03),at(.64),at(-.4),40,112,[TOWER[0],0,TOWER[2]]));
+ const bronze={p:[],n:[],ix:[]},stone={p:[],n:[],ix:[]};
+ for(const w of TOWER_WINDOWS){const angle=(u,m)=>w.at+u*S/turned(w.at,at(m)).span;windowFrame(w,(u,m,out)=>onTower(angle(u,m),at(m),out),(u,m)=>towerNormal(angle(u,m),at(m)),stone,bronze,.065,.016,.006);}
  return{bronze,stone};
 }
-// The portal: two stone orders round the doorway on the porch's face, outside
-// its bronze roll (FRAME) as the room's frames step out (contour), the outer
-// standing further forward; each on a colonnette with a bronze capital and a
-// stone base.
-function portal(){
- const stone={p:[],n:[],ix:[]},bronze={p:[],n:[],ix:[]},door={a:.86,sill:0,shoulder:1.26,peak:2.72};
- for(const [pad,forward] of [[.14,.009],[.255,.02]]){
-  const w=around(door,pad),z=DOOR.plane+forward,pts=arch(w,22).slice(1,-1).map(([u,m])=>[u*S,at(m),z]);
-  strap(pts,pts.map(()=>[0,0,1]),.0135,.011,stone,.45,12);
-  for(const side of [-1,1]){
-   const x=side*w.a*S,zc=z+.006;
-   tube([[x,FLOOR+.03,zc],[x,at(w.shoulder-.12),zc]],.012,10,stone);
-   merge(bronze,turnedPiece(x,zc,at(w.shoulder-.16),at(w.shoulder+.01),.019));
-   merge(stone,turnedPiece(x,zc,FLOOR-.004,at(.2),.019));
-  }
- }
- return{stone,bronze};
-}
-// The terrace's channel of living glass, down its middle from the door (the
-// fittings' shader edges it in bronze): 0.4 m wide, ending round 5.4 m out.
-function runner(){
- const p=[],n=[],ix=[],rows=60,y=FLOOR+.0012;
- for(let i=0;i<=rows;i++){
-  const m=.05+5.35*i/rows,half=m<=5.2?.2:Math.sqrt(Math.max(0,.04-(m-5.2)**2));
-  p.push(-half*S,y,DOOR.plane+m*S,half*S,y,DOOR.plane+m*S);n.push(0,1,0,0,1,0);
- }
- for(let i=0;i<rows;i++){const a=2*i;ix.push(a,a+2,a+1,a+1,a+2,a+3);}
- return{p,n,ix};
-}
-// The lanterns: a stone foot, a bronze post, a six-sided lantern of lit glass
-// (mat 3) under a bronze cap.
-function lanterns(){
- const bronze={p:[],n:[],ix:[]},stone={p:[],n:[],ix:[]},glass={p:[],n:[],ix:[]};
- for(const [x,z] of LANTERNS){
-  merge(stone,turnedPiece(x,z,FLOOR-.004,at(.28),.03,12));
-  tube([[x,at(.2),z],[x,at(1.62),z]],.0075,8,bronze);
-  merge(bronze,turnedPiece(x,z,at(1.56),at(1.64),.026,12));
-  merge(glass,lathe(y=>.02+.004*(y-at(1.62))/(at(1.92)-at(1.62)),at(1.92),at(1.62),4,6,[x,0,z]));
-  merge(bronze,lathe(y=>.029*clamp((at(2.04)-y)/(at(2.04)-at(1.9))),at(2.04),at(1.9),6,6,[x,0,z]));
-  merge(bronze,turnedPiece(x,z,at(2.02),at(2.1),.006,8));
- }
- return{bronze,stone,glass};
-}
+
 // The great window's tracery (room-architecture.js) for the shader: the
 // central mullion, the fork, the pointed eye, the slim mullions and the four
 // small heads, as segments on its right half (metres from its axis: from,
@@ -408,6 +272,65 @@ function traceryGLSL(w){
  }
  return segs.map(([ax,ay,bx,by,rr])=>` d=min(d,seg(p,vec2(${f(ax)},${f(ay)}),vec2(${f(bx)},${f(by)}))-${f(rr*1.5)});`).join('\n');
 }
+
+// A continuous chamber/tower skin, built ONCE after the first core frame.
+// Smooth union + marching tetrahedra; welded edges, analytic-field normals.
+// No per-frame meshing, no volume raymarch, no additional scene light.
+function sanctuaryShell(){
+ const step=.050,lo=[-1.22,-1.29,-1.37],hi=[1.94,TOWER_TIP+.04,1.20];
+ const [nx,ny,nz]=hi.map((v,i)=>Math.ceil((v-lo[i])/step)+1),N=nx*ny*nz;
+ const values=new Float32Array(N),mesh={p:[],n:[],ix:[]},edges=new Map();
+ function field(x,y,z){
+  const by=FLOOR+(y-FLOOR)/K,br=bodyRadius(clamp(by,-1.288,1.29)),a=Math.atan2(z,x);
+  const fold=bodyFold(a,by);
+  const radial=Math.hypot(x,z)-fold;
+  // Ellipsoidal caps keep field gradients finite at the dome and keel tips.
+  const body=by>.38?(Math.hypot(radial/1.07,(by-.38)/.91)-1)*.85:by<-.79?(Math.hypot(radial/.95,(by+.79)/.50)-1)*.48:(radial-br)*.88;
+  const h=clamp((y-TOWER_BASE)/(TOWER_TIP-TOWER_BASE)),r=towerRadius(clamp(y,TOWER_BASE,TOWER_TIP));
+  const dx=x-TOWER[0]-Math.sin(h*7.5)*.085*h*h,dz=z-TOWER[2]-Math.cos(h*7.5)*.085*h*h;
+  const c=Math.cos(h*TWIST),sn=Math.sin(h*TWIST),tx=c*dx/STRETCH[0]-sn*dz/STRETCH[1],tz=sn*dx/STRETCH[0]+c*dz/STRETCH[1];
+  const swell=.012*Math.sin(Math.atan2(tz,tx)*2+y*3)*Math.sin(h*Math.PI);
+  const tower=Math.max((Math.hypot(tx,tz)-r-swell)*.9,y-TOWER_TIP,TOWER_BASE-y);
+  const blend=clamp(.5+.5*(tower-body)/.34);return tower+(body-tower)*blend-.34*blend*(1-blend);
+ }
+ const point=id=>[lo[0]+(id%nx)*step,lo[1]+(Math.floor(id/nx)%ny)*step,lo[2]+Math.floor(id/(nx*ny))*step];
+ for(let z=0;z<nz;z++)for(let y=0;y<ny;y++)for(let x=0;x<nx;x++)values[x+nx*(y+ny*z)]=field(lo[0]+x*step,lo[1]+y*step,lo[2]+z*step);
+ function edge(a,b){
+  if(a>b)[a,b]=[b,a];const key=a*N+b;if(edges.has(key))return edges.get(key);
+  const p=point(a),q=point(b),t=values[a]/(values[a]-values[b]),v=p.map((x,i)=>x+(q[i]-x)*t),e=.001;
+  for(let pass=0;pass<2;pass++){
+   const g=[(field(v[0]+e,v[1],v[2])-field(v[0]-e,v[1],v[2]))/(2*e),(field(v[0],v[1]+e,v[2])-field(v[0],v[1]-e,v[2]))/(2*e),(field(v[0],v[1],v[2]+e)-field(v[0],v[1],v[2]-e))/(2*e)];
+   const d=field(...v)/Math.max(.001,g[0]*g[0]+g[1]*g[1]+g[2]*g[2]);for(let k=0;k<3;k++)v[k]-=d*g[k];
+  }
+  const n=norm([field(v[0]+e,v[1],v[2])-field(v[0]-e,v[1],v[2]),field(v[0],v[1]+e,v[2])-field(v[0],v[1]-e,v[2]),field(v[0],v[1],v[2]+e)-field(v[0],v[1],v[2]-e)]);
+  const index=mesh.p.length/3;mesh.p.push(...v);mesh.n.push(...n);edges.set(key,index);return index;
+ }
+ function face(a,b,c){
+  const at=i=>mesh.p.slice(i*3,i*3+3),normal=mesh.n.slice(a*3,a*3+3),turn=cross(sub(at(b),at(a)),sub(at(c),at(a)));
+  if(turn.reduce((v,x,i)=>v+x*normal[i],0)>0)[b,c]=[c,b];mesh.ix.push(a,b,c);
+ }
+ const tetra=[[0,5,1,6],[0,1,2,6],[0,2,3,6],[0,3,7,6],[0,7,4,6],[0,4,5,6]];
+ for(let z=0;z<nz-1;z++)for(let y=0;y<ny-1;y++)for(let x=0;x<nx-1;x++){
+  const a=x+nx*(y+ny*z),v=[a,a+1,a+1+nx,a+nx,a+nx*ny,a+1+nx*ny,a+1+nx+nx*ny,a+nx+nx*ny];
+  const count=v.reduce((n,i)=>n+(values[i]<0),0);if(count===0||count===8)continue;
+  for(const t of tetra){
+   const ins=t.map(i=>v[i]).filter(i=>values[i]<0),out=t.map(i=>v[i]).filter(i=>values[i]>=0);
+   if(ins.length===1)face(...out.map(b=>edge(ins[0],b)));
+   else if(ins.length===3)face(...ins.map(b=>edge(out[0],b)));
+   else if(ins.length===2){const a=edge(ins[0],out[0]),b=edge(ins[0],out[1]),c=edge(ins[1],out[0]),d=edge(ins[1],out[1]);face(a,b,c);face(b,d,c);}
+  }
+ }
+ const tip=lathe(towerRadius,TOWER_TIP,TOWER_TIP-.34,28,32,TOWER);
+ for(let i=0;i<tip.p.length;i+=3){
+  const y=tip.p[i+1],h=clamp((y-TOWER_BASE)/(TOWER_TIP-TOWER_BASE)),twist=TWIST*h,c=Math.cos(twist),sn=Math.sin(twist),x=tip.p[i]-TOWER[0],z=tip.p[i+2]-TOWER[2];
+  tip.p[i]=TOWER[0]+(c*x+sn*z)*STRETCH[0]+Math.sin(h*7.5)*.085*h*h;
+  tip.p[i+2]=TOWER[2]+(-sn*x+c*z)*STRETCH[1]+Math.cos(h*7.5)*.085*h*h;
+ }
+ tip.n=gridNormals(tip.p,28,32,i=>{const y=TOWER_TIP-.34*i/28,h=clamp((y-TOWER_BASE)/(TOWER_TIP-TOWER_BASE));return[TOWER[0]+Math.sin(h*7.5)*.085*h*h,y,TOWER[2]+Math.cos(h*7.5)*.085*h*h];});
+ merge(mesh,tip);
+ if(mesh.p.length/3>=65536)throw Error('Sanctuary exceeds 16-bit mesh budget');return mesh;
+}
+
 const COMMON=`
 float sat(float x){return clamp(x,0.,1.);}
 float ease(float x){x=sat(x);return x*x*(3.-2.*x);}
@@ -428,32 +351,44 @@ uniform mat4 vp;
 uniform float time,age,part,curtains,stillness,mat;
 varying vec3 P,N,O;
 ${COMMON}
+vec3 skinBreath(vec3 p,vec3 original){
+ float rhythm=pow(.5-.5*cos(time*.78),2.)*(1.-stillness);
+ float bias=smoothstep(.79,1.30,dot(original.xz,normalize(vec3(1.2118,0.0000,(-0.6996)).xz)));
+ float anchor=exp(-pow(original.x/.46,4.))*smoothstep(.5,.85,original.z)*(1.-smoothstep(.34,.62,abs(original.y+.3)));
+ float live=.027*rhythm*(1.-anchor)*smoothstep(-.72,.05,original.y)*(1.-smoothstep(1.65,2.1,original.y));
+ vec2 axis=mix(vec2(0.),vec3(1.2118,0.0000,(-0.6996)).xz,bias);p.xz=axis+(p.xz-axis)*(1.+live*(.45+.35*sin(original.y*5.-time*1.15+original.x*1.6)));return p;
+}
 vec3 deform(vec3 p){
  float dome=ease((age-.65)/1.85),walls=ease((age-2.1)/1.9),tower=ease((age-3.05)/2.1),entry=ease((age-4.85)/.65),landing=ease((age-5.45)/1.15);
  float rhythm=pow(.5-.5*cos(time*.78),2.)*(1.-stillness);
  float life=.034*rhythm;
+ if(part>9.5){
+  float bias=smoothstep(.79,1.30,dot(p.xz,normalize(vec3(1.2118,0.0000,(-0.6996)).xz)));
+  vec3 bp=p;float by=(-0.7800)+(p.y-(-0.7800))/0.8454,roof=step(.38,by);
+  bp.xz*=max(.001,dome);bp.y=(-0.7800)+(mix(1.50,mix(.38,by,roof+(1.-roof)*walls),dome)-(-0.7800))*0.8454;
+  vec3 tp=p-vec3(1.2118,0.0000,(-0.6996));float h=sat((p.y-(-1.0800))/3.1782),grow=ease(tower*1.3-h*.3),twist=(1.-tower)*4.*h*h;
+  float c=cos(twist),s=sin(twist);tp.xz=mat2(c,-s,s,c)*tp.xz*max(.001,grow);tp.y=mix(-.35,p.y,tower);tp.xz+=vec3(1.2118,0.0000,(-0.6996)).xz;p=mix(bp,tp,bias);
+  return skinBreath(p,position);
+
+ }
  if(part<.5){
   float roof=step(.38,p.y);
   p.xz*=max(.001,dome);
   p.y=mix(1.50,mix(.38,p.y,roof+(1.-roof)*walls),dome);
-  // The socle comes out of the glass as the walls reach it.
+  // Mineral window reveals emerge as the walls reach them.
   if(mat>1.5)p.xz*=.84+.16*walls;
-  float anchor=exp(-pow(position.x/.46,4.))*smoothstep(.5,.85,position.z)*(1.-smoothstep(.40,.70,abs(position.y+.2)));
-  // The glass and its frame breathe, held still at the socle and the crown.
-  float bodyLife=life*(1.-anchor)*smoothstep(${f(OLD(.6))},${f(OLD(1.8))},position.y)*(1.-smoothstep(1.12,1.3,position.y));
-  float ripple=sin(position.y*5.-time*1.15+position.x*1.6)*.5+sin(position.z*3.+time*.64)*.5;
-  p.xz*=1.+bodyLife*(.6+ripple);
-  p.y+=bodyLife*.55*sin(position.x*2.4+time*.7)*smoothstep(-.78,.2,position.y);
-  p.y=${f(FLOOR)}+(p.y-${f(FLOOR)})*${f(K)};
+  p.y=(-0.7800)+(p.y-(-0.7800))*0.8454;
+  return skinBreath(p,vec3(position.x,(-0.7800)+(position.y-(-0.7800))*0.8454,position.z));
+
  }else if(part<1.5){
   vec3 q=p-${v3(TOWER)};
   float h=sat((q.y-${f(TOWER_BASE)})/${f(TOWER_TIP-TOWER_BASE)}),grow=ease(tower*1.3-h*.3);
-  float twist=(1.-tower)*5.*h*h+life*7.*h+1.5*h;
+  float twist=(1.-tower)*5.*h*h+1.5*h;
   float c=cos(twist),s=sin(twist);
   q.xz=mat2(c,-s,s,c)*q.xz*vec2(1.08,.94)*max(.001,grow);
-  q.xz+=vec2(sin(h*7.5+time*.25*rhythm),cos(h*7.5+time*.25*rhythm))*.085*h*h*tower;
+  q.xz+=vec2(sin(h*7.5),cos(h*7.5))*.085*h*h*tower;
   q.y=mix(-.35,q.y,tower);
-  p=q+${v3(TOWER)};
+  p=q+${v3(TOWER)};return skinBreath(p,p);
  }else if(part<3.5||part>8.5){
   // The doorway, its passage and porch open out from the door's axis.
   p.x*=max(.001,entry);p.y=mix(${f(DOOR.sill)},p.y,entry);
@@ -490,7 +425,7 @@ void main(){
 }
 `;
 // The fragment shaders' common head and opening. The glass, and the
-// fittings (bronze, stone, a lantern's lit glass), are drawn by two programs:
+// fittings (bronze and mineral), are drawn by two programs:
 // each compiles quicker than one would, and the two side by side.
 const FS_HEAD=`#extension GL_OES_standard_derivatives : enable
 precision highp float;
@@ -512,7 +447,7 @@ const FS_OPEN=` float entrance=ease((age-4.85)/.65);
  bool solid=part<5.5||part>8.5;
  // The doorway is cut through the body's front shell (its own coordinates
  // brought to the one scale), where the porch's passage runs through it.
- if(part<.5&&O.z>.20&&doorway(vec2(O.x/max(.001,entrance),${f(FLOOR)}+(O.y-${f(FLOOR)})*${f(K)}))<0.)discard;
+ if((part<.5||part>9.5)&&O.z>.20&&doorway(vec2(O.x/max(.001,entrance),part>9.5?O.y:${f(FLOOR)}+(O.y-${f(FLOOR)})*${f(K)}))<0.)discard;
  // Through the door, the visitor is inside: the room takes over the view.
  if(eye.z<${f(DOOR.plane)}&&solid)discard;
  // Once the curtains part, all that is seen through the doorway gives way to
@@ -524,7 +459,8 @@ const FS_OPEN=` float entrance=ease((age-4.85)/.65);
  if(part<1.5&&age<.651)discard;
  if(part>.5&&part<1.5&&age<3.06)discard;
  if(part>1.5&&part<3.5&&age<4.86)discard;
- if(part>8.5&&age<4.86)discard;
+ if(part>8.5&&part<9.5&&age<4.86)discard;
+ if(part>9.5&&age<.651)discard;
  if(part>3.5&&part<4.5&&age<5.46)discard;
  if(part>5.5&&part<7.5&&age<5.35)discard;
  if(part>7.5&&part<8.5&&age<.66)discard;
@@ -534,19 +470,25 @@ const FS_OPEN=` float entrance=ease((age-4.85)/.65);
  float ndv=max(.0,dot(n,V)),fres=pow(1.-ndv,4.);
 `;
 const FRAGMENT=`${FS_HEAD}
-vec3 current(vec3 q,float layer){
- float spin=time*(.095-layer*.016)+q.y*.8+length(q)*.48;
- float c=cos(spin),s=sin(spin);q.xz=mat2(c,-s,s,c)*q.xz;
- float warp=organic(q*.83+vec3(0.,time*.035,layer*1.7));
- vec2 whorl=q.xy-vec2(-.18,.35);float radius=length(whorl);
- float angle=atan(whorl.y,whorl.x)+q.z*.55;
- float f=sin(angle*2.+radius*11.+warp*1.5-time*.23+layer*1.1);
- float ribbon=pow(1.-abs(f),12.);
- float broad=pow(1.-abs(f),3.);
- float cloud=.5+.5*organic(q*1.12+vec3(3.2,layer,time*.027));
- vec3 tint=mix(vec3(.025,.34,.28),vec3(.15,.07,.28),smoothstep(.3,.9,cloud)*.65);
- return tint*(ribbon*.95+broad*.08)*(.25+.75*cloud)+vec3(.009,.039,.034)*cloud*cloud;
+uniform sampler2D noiseMap;
+float volumeNoise(vec3 p){
+ vec3 i=floor(p),u=fract(p);u=u*u*(3.-2.*u);
+ vec2 uv=(i.xy+vec2(37.,17.)*i.z+u.xy+.5)/256.;
+ vec2 n=texture2D(noiseMap,uv).rg;return mix(n.x,n.y,u.z);
 }
+vec3 current(vec3 q,float layer){
+ float radius=length(q.xy-vec2(-.2,.35)),spin=time*(.055-layer*.014)+3.8/(.6+radius);
+ float c=cos(spin),s=sin(spin);q.xy=mat2(c,-s,s,c)*(q.xy-vec2(-.2,.35))+vec2(-.2,.35);
+ vec3 drift=vec3(0.,time*.025,-time*.018);
+ float warp=volumeNoise(q*1.8+drift+layer*2.7),bend=volumeNoise(q*3.1+3.6-drift);
+ vec3 w=q*7.2+vec3(warp*4.5,bend*3.1,warp-bend);
+ float mist=volumeNoise(w)*.58+volumeNoise(w*2.03+4.7)*.29+volumeNoise(w*4.17-2.1)*.13;
+ float gate=smoothstep(.26,.74,warp),vein=pow(1.-abs(mist*2.-1.),15.)*gate;
+ float cloud=smoothstep(.42,.76,mist)*gate;
+ vec3 hue=mix(vec3(.021,.29,.235),vec3(.13,.044,.24),smoothstep(.25,.85,bend)*.28);
+ return hue*(vein*.43+cloud*.20)+vec3(.00025,.0012,.0014);
+}
+
 // A pointed opening's half-width at height y (arch(), metres; w: its
 // half-width, sill, shoulder and peak), and the opening (negative inside).
 float archHalf(float y,vec4 w){
@@ -609,15 +551,18 @@ vec4 niche(vec2 face,vec3 ray,vec3 wall,vec4 w,float deep,float great,float aa,o
 void main(){
 ${FS_OPEN}
  if(part>5.5&&part<7.5){
+  // Gathered cloth remains inside the real pointed aperture.
+  if(doorway(P.xy)>0.)discard;
   float u=abs(O.x)/${f(DOOR.a)},v=sat((O.y-${f(DOOR.sill)})/${f(DOOR.peak-DOOR.sill)});
   float pleat=.5+.5*sin(u*17.+v*1.1),rim=pow(1.-ndv,2.);
   float thread=.5+.5*sin(u*380.);
-  vec3 silk=mix(vec3(.016,.024,.035),vec3(.052,.073,.082),pleat*.65);
-  silk+=vec3(.16,.12,.065)*pow(pleat,10.)*.18+vec3(.14,.25,.24)*rim*.3;
+  vec3 silk=mix(vec3(.004,.005,.012),vec3(.016,.023,.025),pleat*.65);
+  silk+=vec3(.16,.12,.065)*pow(pleat,10.)*.18+vec3(.055,.09,.10)*rim*.12;
   silk*=.96+.04*thread;
   float hem=1.-smoothstep(.0,.014,min(v,1.-v));
   silk+=vec3(.26,.24,.15)*hem*.24;
-  float a=.88+pleat*.09;
+  silk+=vec3(.34,.14,.027)*exp(-u*120.)*(1.-curtains);
+  float a=.98;
   gl_FragColor=vec4(tonemap(silk)*a,a);return;
  }
  if(part>4.5&&part<5.5){
@@ -627,16 +572,19 @@ ${FS_OPEN}
   float soft=1.-.35*ease((age-5.)/1.6);
   vec3 gold=mix(vec3(.7,.16,.008),vec3(1.8,.95,.16),.45+.45*field);
   gold+=vec3(1.,.63,.13)*veins*.6;
-  gold*=soft*(.65+.35*ndv);
+  gold*=soft*(.65+.35*ndv)*.72;
   gl_FragColor=vec4(tonemap(gold),1.);return;
  }
  if(part>7.5&&part<8.5){
-  float a=.28+.4*(1.-ease((age-5.)/1.6));
+  float a=(.28+.4*(1.-ease((age-5.)/1.6)))*(1.-ease((age-4.9)/1.7));
   vec3 c=mix(vec3(.04,.3,.23),vec3(.5,.3,.045),ease((O.y-1.22)/.32));
   gl_FragColor=vec4(tonemap(c)*a,a);return;
  }
- vec3 q=O;
- if(part>.5&&part<1.5)q=(O-${v3(TOWER)})*vec3(1.6,1.0,1.6);
+ bool shell=part>9.5;
+ bool towerSkin=(part>.5&&part<1.5)||(shell&&dot(O.xz,normalize(vec3(1.2118,0.0000,(-0.6996)).xz))>1.1);
+ vec3 q=O;if(shell&&!towerSkin)q.y=(-0.7800)+(O.y-(-0.7800))/0.8454;
+ if(towerSkin&&!shell)q=(O-${v3(TOWER)})*vec3(1.6,1.0,1.6);
+ if(shell)q=O*vec3(1.,1.18,1.);
  // The passage through the porch: dark stone, as the room's own door passage.
  if(part>2.5&&part<3.5){
   float grain=.5+.5*organic(O*14.);
@@ -647,39 +595,32 @@ ${FS_OPEN}
  // The living surface: the glass is never quite still, so what is seen
  // through it and its highlights waver.
  vec3 wave=vec3(sin(O.y*34.+time*.5+sin(O.x*11.+O.z*7.)*1.4),sin(O.x*23.-O.z*19.+time*.3),sin(O.z*29.-time*.45+sin(O.y*13.)*1.2));
- vec3 n2=normalize(n+(wave-n*dot(wave,n))*.05);
+ vec3 n2=normalize(n+(wave-n*dot(wave,n))*.012);
  vec3 rd=refract(-V,n2,.76);
  // Refracted material layers, no per-pixel volume march: spread further
  // apart in depth, so the currents part as the eye moves (depth), the near
  // ones brighter.
- vec3 inner=current(q+rd*.05,0.)*.78+current(q+rd*.38,1.)*.34+current(q+rd*.86,2.)*.19;
- inner+=current(q+rd*1.32,3.)*.10+current(q+rd*1.85,4.)*.05;
- float pocket=.5+.5*organic(q*2.1+vec3(time*.02,3.2,0.));
- inner*=.30+1.15*pocket*pocket;
- inner+=vec3(.013,.07,.05)*exp(-dot(q-vec3(0.,.35,0.),q-vec3(0.,.35,0.))*1.7);
+ vec3 inner=current(q+rd*.12,0.)*.94+current(q+rd*.95,1.)*.48;
+
+ float pocket=volumeNoise(q*2.1+vec3(time*.02,3.2,0.));
+ inner*=.045+.78*smoothstep(.20,.88,pocket);
+ inner+=vec3(.002,.012,.009)*exp(-dot(q-vec3(0.,.35,0.),q-vec3(0.,.35,0.))*3.1);
  // The glass is thick: where it is seen straight on, light gathers in its
  // depth; toward its edges it darkens before the rim catches the sky.
- inner+=vec3(.006,.030,.025)*pow(ndv,1.6);
+ inner+=vec3(.001,.003,.003)*pow(ndv,1.6);
  inner*=.72+.28*smoothstep(.05,.55,ndv);
  vec3 L=normalize(vec3(-.65,1.,1.)),H=normalize(L+V);
  float highlight=pow(max(dot(n2,H),0.),260.)*.8+pow(max(dot(n2,H),0.),48.)*.055;
- vec3 color=inner*(1.-fres*.75)+vec3(.0015,.004,.004);
- color+=vec3(.65,.76,.70)*highlight;
- color+=mix(vec3(.018,.17,.12),vec3(.13,.055,.22),smoothstep(-.6,.6,n.x))*fres*.95;
- color+=vec3(.15,.085,.014)*max(0.,dot(n,normalize(${v3(CORE_AT)}-P)))*.085;
- color+=night(reflect(-V,n2))*fres*2.;
- // The channel in the terrace glows, its light running in to the door.
- if(part>3.5&&part<4.5)color+=vec3(.015,.10,.085)*(.55+.45*sin(time*1.3+O.z*14.));
- // Blown by hand: each cell of the dome between its ribs a little
- // different; the glass darkening into its ribs, its bands and its socle,
- // and the light in it gathering at its foot.
- if(part<.5){
-  float cell=(atan(O.z,O.x)+${f(75*DEG)})/${f(30*DEG)},m=(O.y-${f(FLOOR)})/${f(BODY_UP)};
-  float rib=abs(cell-floor(cell+.5))*${f(30*DEG)}*length(O.xz)/${f(S)},band=min(abs(m-2.85),abs(m-3.99));
-  if(m>3.99){float h=hash(vec2(floor(cell),9.));color*=(.88+.24*h)*(.72+.28*smoothstep(.0,.32,rib));color+=vec3(.012,0.,.02)*step(.72,h);}
-  color*=(.78+.22*smoothstep(.0,.28,band))*(.7+.3*smoothstep(.64,.95,m));
-  color+=vec3(.008,.05,.042)*exp(-max(0.,m-.64)*2.2)*step(.64,m);
- }
+ vec3 color=inner*(1.-fres*.82)*.74+vec3(.0005,.0015,.002);
+ color+=vec3(.65,.76,.70)*highlight*.74;
+ color+=mix(vec3(.008,.082,.065),vec3(.055,.025,.10),smoothstep(-.6,.6,n.x))*fres*.70;
+ color+=vec3(.15,.085,.014)*max(0.,dot(n,normalize(${v3(CORE_AT)}-P)))*.025;
+ color+=night(reflect(-V,n2))*(.22+fres*2.2);
+ vec3 R=reflect(-V,n2);float softbox=pow(max(0.,dot(R,normalize(vec3(-.7,.9,1.1)))),24.);
+ float streak=exp(-pow((R.x+.55)/.075,2.))*smoothstep(-.4,.6,R.y);
+ color+=vec3(.10,.17,.17)*softbox+vec3(.20,.31,.29)*streak*.22;
+ if(part>8.5&&part<9.5)color*=.58;
+ if(shell&&!towerSkin)color*=.67+.33*smoothstep((-0.5800),.4,O.y);
  // The windows, sunk into the glass: the clerestory in the bays round the
  // body and the room's great window behind (none at the tower's bay or the
  // door's), and the tower's lancets up its stair. Light spills round them.
@@ -687,20 +628,21 @@ ${FS_OPEN}
  // in the shader keeps it quick to compile.)
  vec4 win=vec4(0.),w=vec4(0.,0.,0.,-1.);float edge=9.,deep=.22,great=0.,aa=1.;
  vec2 face=vec2(0.);vec3 wall=vec3(0.,0.,1.);
- if(part<.5){
+ if(part<.5||(shell&&!towerSkin)){
   float phi=atan(O.z,O.x),k=mod(floor((phi+${f(Math.PI/2+Math.PI/12)})/${f(Math.PI/6)}),12.);
   float d=phi-(${f(-Math.PI/2)}+k*${f(Math.PI/6)});d-=${f(TAU)}*floor((d+${f(Math.PI)})/${f(TAU)});
-  face=vec2(d*length(O.xz)/${f(S)},(O.y-${f(FLOOR)})/${f(BODY_UP)});
-  aa=length(fwidth(face));
+  face=vec2(d*length(O.xz)/${f(S)},(O.y-${f(FLOOR)})/(shell?${f(S)}:${f(BODY_UP)}));
+  // Pixel footprint in continuous world coordinates avoids seams where bays wrap.
+  aa=length(fwidth(O))/${f(S)};
   wall=normalize(vec3(P.x,0.,P.z));
   if(k<.5){w=${w4(GREAT)};deep=.30;great=1.;}
-  else if(abs(k-2.)>.5&&abs(k-6.)>.5)w=${w4(CLERESTORY)};
- }else if(part<1.5){
+  else if(abs(k-3.)<.5||abs(k-5.)<.5||abs(k-7.)<.5||abs(k-9.)<.5)w=${w4(CLERESTORY)};
+ }else if(towerSkin){
   vec3 o=O-${v3(TOWER)};
   float h=sat((O.y-${f(TOWER_BASE)})/${f(TOWER_TIP-TOWER_BASE)}),psi=atan(o.z,o.x)-${f(TWIST)}*h;
   vec2 e=vec2(${f(STRETCH[0])}*cos(psi),${f(STRETCH[1])}*sin(psi));
-  float dir=atan(e.y,e.x),r=length(o.xz)*length(e),m=(O.y-${f(FLOOR)})/${f(S)};
-  aa=length(fwidth(vec2(dir*r/${f(S)},m)));
+  float dir=shell?atan(o.z,o.x):atan(e.y,e.x),r=length(o.xz)*(shell?1.:length(e)),m=(O.y-${f(FLOOR)})/${f(S)};
+  aa=length(fwidth(O))/${f(S)};
   wall=vec3(cos(dir),0.,sin(dir));deep=.24;
 ${TOWER_WINDOWS.map(t=>`  {float d=dir-${f(t.at)};d-=${f(TAU)}*floor((d+${f(Math.PI)})/${f(TAU)});
    if(abs(d*r)<${f(.6*S)}){face=vec2(d*r/${f(S)},m);w=${w4(t)};}}`).join('\n')}
@@ -716,7 +658,7 @@ ${TOWER_WINDOWS.map(t=>`  {float d=dir-${f(t.at)};d-=${f(TAU)}*floor((d+${f(Math
  gl_FragColor=vec4(tonemap(color),1.);
 }
 `;
-// The fittings: bronze, stone, and a lantern's lit glass (mat 1-3).
+// The fittings: bronze (mat 1) and polished mineral (mat 2).
 const FITTINGS=`${FS_HEAD}
 // The room's bronze (room-scene.js architecturalMetal: #827354, half metal),
 // worn and greening in places: the key's highlight and the night in it, and
@@ -743,78 +685,28 @@ float terrace(vec2 o){
 }
 void main(){
 ${FS_OPEN}
- // Down the middle of the terrace's top, a channel of the living glass
- // (drawn with the glass: runner()), edged in bronze, from the door.
  float look=mat;
  vec2 t=vec2(O.x,O.z-${f(DOOR.plane)})/${f(S)};
- bool top=part>3.5&&part<4.5&&abs(O.y-${f(FLOOR)})<.004;
- if(top&&mat>1.5){
-  float run=t.y<.05?9.:length(vec2(t.x,max(0.,t.y-5.2)));
-  if(run>.19&&run<.245)look=1.;
- }
- if(mat>2.5){
-  // A lantern's glass, lit within: six panes in bronze, brightest round the
-  // flame.
-  vec2 o=O.xz-vec2(sign(O.x)*${f(LANTERNS[1][0])},${f(LANTERNS[1][1])});
-  float side=fract(atan(o.y,o.x)/${f(Math.PI/3)}),h=(O.y-${f(at(1.62))})/${f(at(1.92)-at(1.62))};
-  float rim=min(min(side,1.-side)*${f(Math.PI/3*.021)},min(h,1.-h)*${f(at(1.92)-at(1.62))});
-  float flame=exp(-pow((h-.38)/.28,2.))*(.9+.1*sin(time*5.3+O.x*40.)*(1.-stillness));
-  vec3 c=mix(vec3(.5,.22,.05),vec3(1.5,.86,.32),flame);
-  c=mix(vec3(.025,.018,.01),c,smoothstep(.0012,.0024,rim));
-  gl_FragColor=vec4(tonemap(c),1.);return;
- }
+
  if(look>.5&&look<1.5){
   vec3 axis=part>.5&&part<1.5?${v3(TOWER)}:vec3(0.);
   vec3 inward=part>3.5&&part<4.5?vec3(0.,1.,0.):part>1.5?vec3(0.,0.,-1.):normalize(vec3(axis.x-P.x,.0001,axis.z-P.z));
   gl_FragColor=vec4(tonemap(bronze(n,V,inward)),1.);return;
  }
  if(look>1.5){
-  // Dressed stone, as the room's (room-scene.js: warm grey, fine grain), at
-  // night: the key from above left, a little of the glass's teal. Each stone
-  // its own tone. Its joints, metres: one course of blocks round the socles,
-  // the porch's voussoirs over its jambs' courses, the terrace's flags
-  // inside a kerb; none on the mouldings. Under the terrace, rough rock.
-  float grain=.5+.3*organic(O*43.)+.2*organic(O*13.+3.1),j=9.,tone=.5;
-  bool rock=part>3.5&&part<4.5&&O.y<${f(FLOOR-.035)};
-  if(part<1.5){
-   vec3 o=part<.5?O:O-${v3(TOWER)};
-   float m=(O.y-${f(FLOOR)})/(part<.5?${f(BODY_UP)}:${f(S)}),along=atan(o.z,o.x)*(part<.5?${f(1.04/S/1.25)}:${f(TOWER_R*1.06/S/1.25)});
-   if(m>-.26&&m<.44){j=(.5-abs(fract(along)-.5))*1.25;tone=hash(vec2(floor(along),part));}
-  }else if(part>8.5){
-   vec2 p=vec2(O.x,O.y-${f(FLOOR)})/${f(S)},c=p-vec2(0.,1.15);
-   float a=atan(c.y,c.x)/${f(Math.PI/17)};
-   if(p.y>1.4){j=(.5-abs(fract(a)-.5))*${f(Math.PI/17)}*length(c);tone=hash(vec2(floor(a),3.));}
-   else{j=(.5-abs(fract(p.y/.3)-.5))*.3;tone=hash(vec2(floor(p.y/.3),sign(p.x)));}
-  }else if(top){
-   float inside=terrace(O.xz)/${f(S)},v=(O.z-${f(PLATFORM.z)})/${f(PLATFORM.length)};
-   if(inside<.2){
-    // The kerb, in lengths of 0.6 m along the edge.
-    float along=v<=.62?t.y:${f((.62*PLATFORM.length+PLATFORM.z-DOOR.plane)/S)}+(1.5708-atan(abs(O.x)/.51,(v-.62)/.38))*${f(.58/S)};
-    j=min((.5-abs(fract(along/.6)-.5))*.6,abs(inside-.2));tone=hash(vec2(floor(along/.6),5.));
-   }else{
-    float row=floor(t.y/.78),col=floor(t.x/1.05+row*.37);
-    j=min(min((.5-abs(fract(t.y/.78)-.5))*.78,(.5-abs(fract(t.x/1.05+row*.37)-.5))*1.05),abs(inside-.2));tone=hash(vec2(row,col));
-   }
+  if(part<1.5){vec3 R=reflect(-V,n),L=normalize(vec3(-.65,1.,1.));vec3 c=vec3(.004,.012,.014)*(1.+.25*organic(O*30.))+night(R)*(.35+fres*2.);c+=vec3(.13,.22,.20)*pow(max(dot(R,L),0.),60.);gl_FragColor=vec4(tonemap(c),1.);return;}
+  if(part>3.5&&part<4.5){
+   float edge=terrace(O.xz),lip=exp(-pow((edge-.013)/.008,2.));vec3 R=reflect(-V,n),L=normalize(vec3(-.65,1.,1.));
+   float grain=.5+.5*organic(O*22.),polish=pow(max(dot(R,L),0.),70.);vec3 c=vec3(.009,.013,.015)*(.7+.3*grain)+night(R)*(.15+fres*.8);
+   c+=vec3(.016,.06,.053)*(1.-smoothstep((-0.8900),(-0.7900),O.y))+vec3(.14,.19,.17)*polish*.35;
+   c+=vec3(.004,.009,.008)*pow(1.-abs(organic(O*vec3(5.,12.,8.)+2.7)),22.)*.18;
+   c=mix(c,bronze(n,V,vec3(0.,1.,0.)),lip);c+=vec3(.05,.021,.004)*exp(-dot(t,t)/2.3)*(.25+.75*curtains);gl_FragColor=vec4(tonemap(c),1.);return;
   }
-  float joint=1.-smoothstep(.004,.006+fwidth(j)*1.2,j);
-  vec3 L=normalize(vec3(-.65,1.,1.)),base=vec3(.142,.124,.102)*(.7+.42*grain)*(.86+.28*tone)*(1.-.5*joint);
-  vec3 c=base*(.5*max(dot(n,L),0.)+.12*(.5+.5*n.y)+.03)+base*vec3(.08,.36,.30)*.12;
-  c+=vec3(.05,.045,.06)*pow(1.-ndv,3.)*.2;
-  if(top){
-   // The room's warm light before the door, more as the curtains part, and
-   // the lanterns' round their feet.
-   vec2 l=vec2(abs(t.x)-${f(LANTERNS[1][0]/S)},t.y-${f((LANTERNS[1][1]-DOOR.plane)/S)});
-   c+=base*(vec3(.9,.45,.12)*exp(-dot(t,t)/1.6)*(.25+.75*curtains)*.55+vec3(1.,.55,.18)*exp(-dot(l,l)/1.1)*.7);
-  }
-  if(rock){
-   float strata=.5+.5*sin(O.y*140.+organic(O*7.)*3.);
-   c=base*(.04+.15*max(dot(n,L),0.))*(.7+.3*strata)+vec3(.006,.05,.042)*pow(1.-abs(organic(O*8.+vec3(0.,time*.04,0.))),60.)*.35;
-  }
-  gl_FragColor=vec4(tonemap(c),1.);return;
+
  }
+ gl_FragColor=vec4(0.,0.,0.,1.);
 }
 `;
-
 
 // The gate's void (loading-gate.css: its three gradients, its two layers of
 // stars), drawn here from the flight on where nothing else is, so the
@@ -852,6 +744,18 @@ function hole(){
 }
 const HALO_VS=`precision highp float;attribute vec2 pos;varying vec2 uv;uniform vec2 center,size;void main(){uv=pos;gl_Position=vec4(center+pos*size,0.,1.);}`;
 const HALO_FS=`precision highp float;varying vec2 uv;uniform float strength;void main(){float r=dot(uv,uv);float a=exp(-r*5.)*smoothstep(1.,.7,sqrt(r))*strength;gl_FragColor=vec4(vec3(.9,.46,.045)*a,0.);}`;
+// A repeatable value-noise atlas. R/G hold adjacent z slices; bilinear
+// filtering supplies xy, the shader interpolates z. 256 KiB, no download,
+// never updated. This replaces dozens of sine hashes per covered pixel.
+function makeNoiseMap(){
+ const size=256,data=new Uint8Array(size*size*4),seed=new Uint8Array(size*size);let state=0x51f15e;
+ for(let i=0;i<seed.length;i++){state^=state<<13;state^=state>>>17;state^=state<<5;seed[i]=(state>>>0)>>>24;}
+ for(let y=0;y<size;y++)for(let x=0;x<size;x++){const i=(y*size+x)*4;data[i]=seed[y*size+x];data[i+1]=seed[((y+17)%size)*size+(x+37)%size];data[i+2]=0;data[i+3]=255;}
+ noiseTexture=gl.createTexture();gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,noiseTexture);
+ gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,size,size,0,gl.RGBA,gl.UNSIGNED_BYTE,data);
+ gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+ gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);
+}
 function shader(kind,src){const s=gl.createShader(kind);gl.shaderSource(s,src);gl.compileShader(s);return s;}
 // Programs are all compiled and linked first, and only then asked whether
 // they succeeded (linked), so they can be compiled side by side.
@@ -948,7 +852,7 @@ function part(mesh,id,material=0,g=pg.glass){
  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,mesh.ix);gl.drawElements(gl.TRIANGLES,mesh.count,gl.UNSIGNED_SHORT,0);metrics.drawCalls++;
 }
 function report(){send('stats',{...metrics,phase,time,width,height,reduced,paused,formation:FORMATION,entry:ENTRY});}
-// The fittings (bronze, stone, the lanterns) are built, and their program
+// The shell and fittings are built, and their program
 // compiled, once the first frame is out: the formation begins with the core
 // alone. While it animates they are drawn from when their program is
 // compiled (in parallel where the browser can), so neither holds a frame
@@ -958,10 +862,10 @@ let fittings=null,parallel=null;
 function fit(wait){
  if(!fittings){
   if(first&&!wait)return false;
-  const shell=sanctuary(),drum=towerFittings(),door=portal(),lamps=lanterns();
-  fittings={made:program(VERTEX,FITTINGS),meshes:{face:upload(porch(true)),frame:upload(frame()),platform:upload(platform()),
-   ribs:upload(shell.bronze),socle:upload(shell.stone),drumBronze:upload(drum.bronze),drumStone:upload(drum.stone),orders:upload(door.stone),capitals:upload(door.bronze),
-   lanternBronze:upload(lamps.bronze),lanternStone:upload(lamps.stone),lanternGlass:upload(lamps.glass)}};
+  const buildStart=performance.now(),shell=sanctuary(),drum=towerFittings();
+  fittings={made:program(VERTEX,FITTINGS),meshes:{shell:upload(sanctuaryShell()),frame:upload(frame()),platform:upload(platform()),bodySills:upload(shell.bronze),bodyReveals:upload(shell.stone),drumBronze:upload(drum.bronze),drumStone:upload(drum.stone)}};
+  metrics.buildMs=performance.now()-buildStart;
+
  }
  if(!pg.fittings){
   if(!wait&&parallel&&!gl.getProgramParameter(fittings.made.p,parallel.COMPLETION_STATUS_KHR))return false;
@@ -1008,22 +912,21 @@ function render(wait=true){
  if(!through){
   gl.enable(gl.DEPTH_TEST);gl.depthMask(true);gl.disable(gl.BLEND);
   const use=g=>{
-   gl.useProgram(g.p);gl.uniformMatrix4fv(g.u.vp,false,m);
+   gl.useProgram(g.p);gl.uniformMatrix4fv(g.u.vp,false,m);if(g.u.noiseMap)gl.uniform1i(g.u.noiseMap,0);
    gl.uniform3fv(g.u.eye,camera.eye);gl.uniform1f(g.u.time,reduced?8:time);gl.uniform1f(g.u.age,age);
    gl.uniform1f(g.u.curtains,camera.curtain);gl.uniform1f(g.u.reveal,camera.reveal);gl.uniform1f(g.u.stillness,reduced?1:0);
   };
   const g=pg.glass,t=pg.fittings;use(g);
   // Lathe triangles wind inward: cull their front-facing (inside) surfaces.
   gl.enable(gl.CULL_FACE);gl.cullFace(gl.FRONT);
-  part(meshes.body,0);part(meshes.tower,1);part(meshes.core,5);
+  if(fitted)part(meshes.shell,10);part(meshes.core,5);
   gl.disable(gl.CULL_FACE);
-  part(meshes.porch,9);part(meshes.tunnel,3);part(meshes.runner,4);
-  // The frame the glass is held in, and the stone it stands in.
+  part(meshes.porch,9);part(meshes.tunnel,3);
+  // The fine bronze inner reveal, mineral landing and recessed window trim.
   if(fitted){
    gl.disableVertexAttribArray(g.n);use(t);
-   part(meshes.face,9,2,t);part(meshes.frame,2,1,t);part(meshes.platform,4,2,t);
-   part(meshes.ribs,0,1,t);part(meshes.socle,0,2,t);part(meshes.drumBronze,1,1,t);part(meshes.drumStone,1,2,t);part(meshes.orders,2,2,t);part(meshes.capitals,2,1,t);
-   part(meshes.lanternBronze,4,1,t);part(meshes.lanternStone,4,2,t);part(meshes.lanternGlass,4,3,t);
+   part(meshes.frame,2,1,t);part(meshes.platform,4,2,t);part(meshes.bodySills,0,1,t);part(meshes.bodyReveals,0,2,t);part(meshes.drumBronze,1,1,t);part(meshes.drumStone,1,2,t);
+
    gl.disableVertexAttribArray(t.n);gl.useProgram(g.p);
   }
   gl.disableVertexAttribArray(g.n);
@@ -1079,7 +982,7 @@ function loop(now){
  }
  schedule();
 }
-function stop(){disposed=true;cancelAnimationFrame(handle);if(gl){if(fittings&&!pg?.fittings){gl.deleteProgram(fittings.made.p);Object.assign(meshes,fittings.meshes);}for(const m of Object.values(meshes||{}))if(m?.p){gl.deleteBuffer(m.p);gl.deleteBuffer(m.n);gl.deleteBuffer(m.ix);}gl.deleteBuffer(meshes?.quad);for(const p of Object.values(pg||{}))gl.deleteProgram(p.p);if(query)ext?.deleteQueryEXT(query);gl.getExtension('WEBGL_lose_context')?.loseContext();}send('disposed');close();}
+function stop(){disposed=true;cancelAnimationFrame(handle);if(gl){if(fittings&&!pg?.fittings){gl.deleteProgram(fittings.made.p);Object.assign(meshes,fittings.meshes);}for(const m of Object.values(meshes||{}))if(m?.p){gl.deleteBuffer(m.p);gl.deleteBuffer(m.n);gl.deleteBuffer(m.ix);}gl.deleteBuffer(meshes?.quad);gl.deleteTexture(noiseTexture);for(const p of Object.values(pg||{}))gl.deleteProgram(p.p);if(query)ext?.deleteQueryEXT(query);gl.getExtension('WEBGL_lose_context')?.loseContext();}send('disposed');close();}
 // The entry's view (scene-camera.js entryView), where the walk in ends.
 function setEntry(view){if(view&&['x','y','z','yaw','tilt','lens'].every(k=>Number.isFinite(view[k])))entry={...entry,...view};}
 onmessage=({data:d})=>{
@@ -1088,14 +991,13 @@ onmessage=({data:d})=>{
    canvas=d.canvas;screenW=d.width;screenH=d.height;dpr=d.dpr||1;reduced=!!d.reduced;
    gl=canvas.getContext('webgl',{alpha:true,antialias:true,premultipliedAlpha:true,depth:true,powerPreference:'low-power'});
    if(!gl||!gl.getExtension('OES_standard_derivatives'))throw Error('Worker WebGL with derivatives unavailable');
-   ext=gl.getExtension('EXT_disjoint_timer_query');resize();
+   ext=gl.getExtension('EXT_disjoint_timer_query');resize();makeNoiseMap();
    parallel=gl.getExtension('KHR_parallel_shader_compile');
    const made={glass:program(VERTEX,FRAGMENT),halo:program(HALO_VS,HALO_FS),sky:program(SKY_VS,SKY_FS),hole:program(HOLE_VS,HOLE_FS)};
    pg=Object.fromEntries(Object.entries(made).map(([name,made])=>[name,linked(made)]));
-   meshes={body:upload(lathe(bodyRadius,1.289,-1.288,144,128)),tower:upload(lathe(towerRadius,TOWER_TIP,TOWER_BASE,140,96,TOWER)),
-    core:upload(lathe(y=>Math.sqrt(Math.max(0,.17**2-y*y)),.17,-.17,40,64,CORE)),
+   meshes={core:upload(lathe(y=>Math.sqrt(Math.max(0,.17**2-y*y)),.17,-.17,40,64,CORE)),
     feed:upload(lathe(y=>.006+.014*Math.sin((y-1.22)/.38*Math.PI),1.60,1.22,28,24)),
-    porch:upload(porch()),tunnel:upload(passage()),runner:upload(runner()),left:upload(curtain(-1)),right:upload(curtain(1)),hole:upload(hole())};
+    porch:upload(porch()),tunnel:upload(passage()),left:upload(curtain(-1)),right:upload(curtain(1)),hole:upload(hole())};
    meshes.quad=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,meshes.quad);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
    render(reduced);schedule();
   }else if(d.type==='resize'){screenW=d.width;screenH=d.height;dpr=d.dpr||1;resize();if(paused||reduced)render();}
