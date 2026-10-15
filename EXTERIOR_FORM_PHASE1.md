@@ -130,3 +130,10 @@ Final normalized runtime SHA-256: `ec4a23274b57ae2651612c63600843ed69c534819ef7e
 ## Review completion (2026-10-15)
 
 Resumed from the exact Phase 1 stopping point. No additional runtime/design changes and no test reruns were made during this completion step. Existing final screenshots, invariant results, lifecycle results and four matched-camera performance runs were inspected and retained. The comparison page now states the remaining form differences and links this handoff. The local review server on port 8774 returned HTTP 200.
+
+## Saved checkpoint
+
+- Implementation, comparison page, selected evidence and collected verification results: `68fb6bf60cabcba204699e4d2801ccdf108b834c` — `Match Concept B exterior form and camera for Phase 1 review`.
+- The subsequent documentation-only commit records this checkpoint; runtime source and evidence are unchanged.
+- Working tree was clean after the implementation commit. All Phase 1 changes were preserved in the isolated branch. Local raw verification output remains gitignored and available in this worktree.
+- Review is now waiting for user approval. No Phase 2 work is authorized by this checkpoint.
