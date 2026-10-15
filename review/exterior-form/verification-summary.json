@@ -1,0 +1,368 @@
+{
+  "phase": "Concept B Phase 1: form and camera only",
+  "branch": "feature/exterior-b-form-camera",
+  "base": "6e61372",
+  "sourceHash": "ec4a23274b57ae2651612c63600843ed69c534819ef7e45e788eb1065e49a5e9",
+  "capture": {
+    "sourceHash": "ec4a23274b57ae2651612c63600843ed69c534819ef7e45e788eb1065e49a5e9",
+    "errors": [],
+    "warnings": []
+  },
+  "invariant": {
+    "result": "PASS",
+    "doorAndCurtains": "unchanged",
+    "sharedWalk": "unchanged",
+    "materialLightAndAnimationBlocks": "unchanged",
+    "walkClearance": 0.2291518520074302,
+    "geometry": [
+      {
+        "name": "sanctuaryShell",
+        "vertices": 55415,
+        "triangles": 110700
+      },
+      {
+        "name": "porch",
+        "vertices": 4059,
+        "triangles": 7840
+      },
+      {
+        "name": "platform",
+        "vertices": 4745,
+        "triangles": 9216
+      }
+    ],
+    "framing": [
+      {
+        "viewport": [
+          1024,
+          1024
+        ],
+        "bounds": [
+          19,
+          37,
+          965,
+          908
+        ]
+      },
+      {
+        "viewport": [
+          1600,
+          1000
+        ],
+        "bounds": [
+          318,
+          36,
+          1242,
+          887
+        ]
+      },
+      {
+        "viewport": [
+          390,
+          844
+        ],
+        "bounds": [
+          21,
+          255,
+          355,
+          561
+        ]
+      },
+      {
+        "viewport": [
+          844,
+          390
+        ],
+        "bounds": [
+          234,
+          14,
+          595,
+          346
+        ]
+      }
+    ]
+  },
+  "performance": [
+    {
+      "name": "performance-before-matched",
+      "ref": "6e61372",
+      "matchCamera": true,
+      "sourceHash": "f42853bdd6e2fba14beb00bfc0c6edb52724cbeca1fb7b5ecf10508fc1454965",
+      "conditions": "Headless Chrome ANGLE D3D11; fresh temporary Chrome profile per command, DPR1; 12.5 sec idle after seek(8.05); target idle 30fps. GPU query approximately every 30 drawn frames. Viewport runs sequentially.",
+      "environment": {
+        "browser": "Chrome/155.0.8059.40",
+        "devices": [
+          {
+            "vendorId": 32902,
+            "deviceId": 39497,
+            "subSysId": 1067194282,
+            "revision": 1,
+            "vendorString": "",
+            "deviceString": "Intel(R) Iris(R) Xe Graphics",
+            "driverVendor": "Intel",
+            "driverVersion": "32.0.101.6881"
+          },
+          {
+            "vendorId": 5140,
+            "deviceId": 140,
+            "subSysId": 0,
+            "revision": 0,
+            "vendorString": "",
+            "deviceString": "Microsoft Basic Render Driver",
+            "driverVendor": "",
+            "driverVersion": "10.0.26100.9549"
+          }
+        ]
+      },
+      "summary": [
+        {
+          "size": [
+            1600,
+            1000
+          ],
+          "firstDrawMs": 1074.5999999940395,
+          "buildMs": 990,
+          "triangles": 117730,
+          "drawCalls": 13,
+          "gpuN": 12,
+          "gpuMedianMs": 3.474635,
+          "gpuP95Ms": 7.646979,
+          "cpuMedianMs": 0.19999998807907104,
+          "cpuP95Ms": 0.4000000059604645,
+          "frameMedianMs": 33.399999999999636,
+          "frameP95Ms": 33.5
+        },
+        {
+          "size": [
+            390,
+            844
+          ],
+          "firstDrawMs": 274.90000000596046,
+          "buildMs": 1058.199999988079,
+          "triangles": 117730,
+          "drawCalls": 13,
+          "gpuN": 12,
+          "gpuMedianMs": 3.471302,
+          "gpuP95Ms": 3.927656,
+          "cpuMedianMs": 0.19999998807907104,
+          "cpuP95Ms": 0.30000001192092896,
+          "frameMedianMs": 33.399999999999636,
+          "frameP95Ms": 33.5
+        }
+      ],
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "name": "performance-final",
+      "ref": "working-tree",
+      "matchCamera": false,
+      "sourceHash": "ec4a23274b57ae2651612c63600843ed69c534819ef7e45e788eb1065e49a5e9",
+      "conditions": "Headless Chrome ANGLE D3D11; fresh temporary Chrome profile per command, DPR1; 12.5 sec idle after seek(8.05); target idle 30fps. GPU query approximately every 30 drawn frames. Viewport runs sequentially.",
+      "environment": {
+        "browser": "Chrome/155.0.8059.40",
+        "devices": [
+          {
+            "vendorId": 32902,
+            "deviceId": 39497,
+            "subSysId": 1067194282,
+            "revision": 1,
+            "vendorString": "",
+            "deviceString": "Intel(R) Iris(R) Xe Graphics",
+            "driverVendor": "Intel",
+            "driverVersion": "32.0.101.6881"
+          },
+          {
+            "vendorId": 5140,
+            "deviceId": 140,
+            "subSysId": 0,
+            "revision": 0,
+            "vendorString": "",
+            "deviceString": "Microsoft Basic Render Driver",
+            "driverVendor": "",
+            "driverVersion": "10.0.26100.9549"
+          }
+        ]
+      },
+      "summary": [
+        {
+          "size": [
+            1600,
+            1000
+          ],
+          "firstDrawMs": 1400.0999999940395,
+          "buildMs": 1898.199999988079,
+          "triangles": 147638,
+          "drawCalls": 13,
+          "gpuN": 11,
+          "gpuMedianMs": 3.949322,
+          "gpuP95Ms": 4.694114,
+          "cpuMedianMs": 0.20000001788139343,
+          "cpuP95Ms": 0.699999988079071,
+          "frameMedianMs": 33.399999999999636,
+          "frameP95Ms": 33.599999999999454
+        },
+        {
+          "size": [
+            390,
+            844
+          ],
+          "firstDrawMs": 257.5,
+          "buildMs": 2723.300000011921,
+          "triangles": 147638,
+          "drawCalls": 13,
+          "gpuN": 11,
+          "gpuMedianMs": 4.109375,
+          "gpuP95Ms": 7.521822,
+          "cpuMedianMs": 0.19999998807907104,
+          "cpuP95Ms": 0.30000001192092896,
+          "frameMedianMs": 33.399999999999636,
+          "frameP95Ms": 33.5
+        }
+      ],
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "name": "performance-final-repeat",
+      "ref": "working-tree",
+      "matchCamera": false,
+      "sourceHash": "ec4a23274b57ae2651612c63600843ed69c534819ef7e45e788eb1065e49a5e9",
+      "conditions": "Headless Chrome ANGLE D3D11; fresh temporary Chrome profile per command, DPR1; 12.5 sec idle after seek(8.05); target idle 30fps. GPU query approximately every 30 drawn frames. Viewport runs sequentially.",
+      "environment": {
+        "browser": "Chrome/155.0.8059.40",
+        "devices": [
+          {
+            "vendorId": 32902,
+            "deviceId": 39497,
+            "subSysId": 1067194282,
+            "revision": 1,
+            "vendorString": "",
+            "deviceString": "Intel(R) Iris(R) Xe Graphics",
+            "driverVendor": "Intel",
+            "driverVersion": "32.0.101.6881"
+          },
+          {
+            "vendorId": 5140,
+            "deviceId": 140,
+            "subSysId": 0,
+            "revision": 0,
+            "vendorString": "",
+            "deviceString": "Microsoft Basic Render Driver",
+            "driverVendor": "",
+            "driverVersion": "10.0.26100.9549"
+          }
+        ]
+      },
+      "summary": [
+        {
+          "size": [
+            1600,
+            1000
+          ],
+          "firstDrawMs": 1120.699999988079,
+          "buildMs": 1532.800000011921,
+          "triangles": 147638,
+          "drawCalls": 13,
+          "gpuN": 11,
+          "gpuMedianMs": 4.200781,
+          "gpuP95Ms": 4.925885,
+          "cpuMedianMs": 0.19999998807907104,
+          "cpuP95Ms": 0.4000000059604645,
+          "frameMedianMs": 33.399999999999636,
+          "frameP95Ms": 33.5
+        },
+        {
+          "size": [
+            390,
+            844
+          ],
+          "firstDrawMs": 214.2999999821186,
+          "buildMs": 2043.2000000178814,
+          "triangles": 147638,
+          "drawCalls": 13,
+          "gpuN": 11,
+          "gpuMedianMs": 3.681666,
+          "gpuP95Ms": 4.232708,
+          "cpuMedianMs": 0.19999998807907104,
+          "cpuP95Ms": 0.30000001192092896,
+          "frameMedianMs": 33.399999999999636,
+          "frameP95Ms": 33.5
+        }
+      ],
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "name": "performance-before-matched-repeat",
+      "ref": "6e61372",
+      "matchCamera": true,
+      "sourceHash": "f42853bdd6e2fba14beb00bfc0c6edb52724cbeca1fb7b5ecf10508fc1454965",
+      "conditions": "Headless Chrome ANGLE D3D11; fresh temporary Chrome profile per command, DPR1; 12.5 sec idle after seek(8.05); target idle 30fps. GPU query approximately every 30 drawn frames. Viewport runs sequentially.",
+      "environment": {
+        "browser": "Chrome/155.0.8059.40",
+        "devices": [
+          {
+            "vendorId": 32902,
+            "deviceId": 39497,
+            "subSysId": 1067194282,
+            "revision": 1,
+            "vendorString": "",
+            "deviceString": "Intel(R) Iris(R) Xe Graphics",
+            "driverVendor": "Intel",
+            "driverVersion": "32.0.101.6881"
+          },
+          {
+            "vendorId": 5140,
+            "deviceId": 140,
+            "subSysId": 0,
+            "revision": 0,
+            "vendorString": "",
+            "deviceString": "Microsoft Basic Render Driver",
+            "driverVendor": "",
+            "driverVersion": "10.0.26100.9549"
+          }
+        ]
+      },
+      "summary": [
+        {
+          "size": [
+            1600,
+            1000
+          ],
+          "firstDrawMs": 1143.699999988079,
+          "buildMs": 1152.5,
+          "triangles": 117730,
+          "drawCalls": 13,
+          "gpuN": 12,
+          "gpuMedianMs": 3.321093,
+          "gpuP95Ms": 7.100468,
+          "cpuMedianMs": 0.19999998807907104,
+          "cpuP95Ms": 0.4000000059604645,
+          "frameMedianMs": 33.399999999999636,
+          "frameP95Ms": 33.5
+        },
+        {
+          "size": [
+            390,
+            844
+          ],
+          "firstDrawMs": 212.2999999821186,
+          "buildMs": 1234.9000000059605,
+          "triangles": 117730,
+          "drawCalls": 13,
+          "gpuN": 12,
+          "gpuMedianMs": 3.394947,
+          "gpuP95Ms": 3.800625,
+          "cpuMedianMs": 0.19999998807907104,
+          "cpuP95Ms": 0.30000001192092896,
+          "frameMedianMs": 33.399999999999636,
+          "frameP95Ms": 33.5
+        }
+      ],
+      "errors": [],
+      "warnings": []
+    }
+  ],
+  "lifecycle": "PASS: verification/living-exterior/form-phase1-final/lifecycle-summary.json. Full lifecycle before final geometry-boundary/porch-contact fix; final exact-contract checks and integrated entry capture passed after it."
+}

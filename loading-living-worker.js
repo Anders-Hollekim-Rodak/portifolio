@@ -5,10 +5,9 @@
 'use strict';
 const FORMATION = 6.6, ENTRY = {approach:2.6, arrival:2, curtains:1.4, walk:5};
 const TAU = Math.PI*2;
-// One scale for the whole building, that of the room inside it
-// (room-chamber.js, room-tower.js): 0.246 to a metre, so the chamber's outer
-// wall (4.35 m from its centre) is the body's widest, 1.07. The room's floor,
-// the door's sill, is y -0.78 here.
+// Door and walk retain the room scale (0.246 per metre) and floor y=-0.78.
+// Phase 1 authors the exterior silhouette to Concept B; the outer shell and
+// window hierarchy need not be a literal offset of the interior wall mesh.
 const S = .246, FLOOR = -.78;
 const at = metres => FLOOR + metres*S;
 // The body is drawn 0.291 to a metre upward (its walls rise to the room's
@@ -16,11 +15,10 @@ const at = metres => FLOOR + metres*S;
 // scale as it is placed (squash), so its formation keeps its shape and timing.
 const K = S/.291, squash = y => FLOOR + (y-FLOOR)*K;
 // The orb's core over the dome: as drawn, and where it stands.
-const CORE = [-.06,1.72,.08], CORE_AT = [CORE[0],squash(CORE[1]),CORE[2]];
-// The stair tower: its drum (1.70 m inside, a 0.35 m wall) stands 5.69 m from
-// the chamber's centre, back right (-30 degrees), from below the floor up to
-// its roof at 7 m; a tall, concave spire above.
-const TOWER = [4.926*S, 0, -2.844*S], TOWER_R = 2.05*S, TOWER_BASE = FLOOR-.3, TOWER_ROOF = at(7), TOWER_TIP = at(11.7);
+const CORE = [.015,1.64,.08], CORE_AT = [CORE[0],squash(CORE[1]),CORE[2]];
+// Slender attached tower, flared foot and a concave, leaning needle spire.
+// Its exterior placement/proportions follow the approved concept.
+const TOWER = [5.49*S, 0, -2.844*S], TOWER_R = 1.44*S, TOWER_BASE = FLOOR-.38, TOWER_ROOF = at(7.2), TOWER_TIP = at(11.95);
 // The doorway: the room's own (room-chamber.js OPEN.door), 0.74 m either side
 // of its axis, straight jambs to 1.26 m, then two quadratic curves to its
 // peak at 2.54 m, drawn as the room draws it, so the two meet exactly. It is
@@ -72,24 +70,31 @@ function lathe(radius,top,bottom,rows,segments,center=[0,0,0]){
  for(let i=0;i<rows;i++)for(let j=0;j<segments;j++){const a=i*(segments+1)+j,b=a+segments+1;ix.push(a,b,a+1,a+1,b,b+1);}
  return {p,n,ix};
 }
+// Authored orb profile, in the existing pre-squash body coordinates.
+// The whole lower body curves inward; there is no cylindrical wall belt.
 function bodyRadius(y){
- if(y>.38)return 1.07*Math.sqrt(Math.max(0,1-((y-.38)/.91)**2));
- if(y>-.79){
-  return 1.07-.12*((y-.38)/1.17)**2;
- }
- const u=clamp((-y-.79)/.5);
- return .95*Math.sqrt(Math.max(0,1-u*u));
+ const ry=y>.03?1.26:1.48;
+ return 1.17*Math.sqrt(Math.max(0,1-((y-.03)/ry)**2));
 }
-// Broad diagonal pressure folds; shared with the window trim placement.
+// Two broad, directional folds wrap from the entrance toward the tower.
+// The narrow upper crest rolls over a wide hollow, like folded mineral glass.
 function bodyFold(a,y){
- const r=bodyRadius(clamp(y,-1.288,1.29));
- return .012*r*Math.sin(a*3+y*1.7)*Math.exp(-Math.pow((y+.1)/1.35,4))+.052*Math.exp(-Math.pow((y-(.01-.50*Math.cos(a)))/.15,2))+.028*Math.exp(-Math.pow((y-(-.83+.12*Math.sin(a+1.4)))/.15,2));
+ const wrap=Math.cos(a),positive=.5*(wrap+Math.sqrt(wrap*wrap+.025)),negative=positive-wrap,crest=.31-.97*positive-.70*negative;
+ const envelope=Math.pow(Math.max(0,1-((y-.03)/(y>.03?1.26:1.48))**2),.5);
+ const upper=(.045+.19*smooth((wrap+.18)/.5))*Math.exp(-Math.pow((y-crest)/.15,2))-.035*Math.exp(-Math.pow((y-crest+.19)/.19,2));
+ const lower=.14*Math.exp(-Math.pow((y-(-.94+.20*wrap))/.12,2));
+ return envelope*(upper+lower);
 }
 function towerRadius(y){
- if(y>TOWER_ROOF-.20){const t=clamp((y-(TOWER_ROOF-.20))/(TOWER_TIP-TOWER_ROOF+.20));return TOWER_R*.985*Math.pow(1-smooth(t),1.15)+.0005;}
- if(y<FLOOR){const u=clamp((y-TOWER_BASE)/(FLOOR-TOWER_BASE));return TOWER_R*1.03*Math.sqrt(Math.max(0,1-(1-u)*(1-u)));}
- const u=clamp((y-FLOOR)/(TOWER_ROOF-.20-FLOOR));return TOWER_R*(1.03-.045*u)+.0005;
+ const eave=TOWER_ROOF;
+ if(y>eave){const t=clamp((y-eave)/(TOWER_TIP-eave));return (TOWER_R*.91+.14)*Math.pow(1-t,1.65)+.0005;}
+ if(y<TOWER_BASE)return 0;
+ if(y<FLOOR){const u=clamp((y-TOWER_BASE)/(FLOOR-TOWER_BASE));return TOWER_R*1.1*Math.sqrt(Math.max(0,1-(1-u)*(1-u)))+.13*Math.exp(-Math.pow((y+.84)/.14,2))*smooth(u/.35);}
+ const u=clamp((y-FLOOR)/(eave-FLOOR));
+ const neck=TOWER_R*(1.1-.19*u+.035*Math.sin(u*TAU));
+ return neck+.14*Math.exp(-Math.pow((y-eave)/.055,2))+.13*Math.exp(-Math.pow((y+.84)/.14,2));
 }
+
 // A pointed arch as the room draws it (room-chamber.js outline): from the
 // sill's left end up the jamb, over the two quadratic curves and down.
 function arch(w=DOOR,steps=18){
@@ -110,17 +115,25 @@ function extrude(pts,z0,z1,into,mesh={p:[],n:[],ix:[]}){
  }
  return mesh;
 }
-// Nested, polished mineral folds grow around the unchanged doorway aperture.
+// A continuous nested arch: the outer rows meet the orb surface rather than
+// ending on a flat applied porch. Doorway coordinates remain the room's own.
 function porch(){
- const inner=arch(DOOR,36),outer=arch({a:1.54*S,sill:FLOOR,shoulder:at(1.95),peak:at(3.8)},36),rows=24,cols=inner.length-1,p=[],n=[],ix=[];
+ const inner=arch(DOOR,48),outer=arch({a:1.86*S,sill:FLOOR-.015,shoulder:at(1.87),peak:at(3.76)},48),rows=40,cols=inner.length-1,p=[],n=[],ix=[];
  for(let j=0;j<=cols;j++)for(let i=0;i<=rows;i++){
-  const t=i/rows,b=smooth(t),x=inner[j][0]+(outer[j][0]-inner[j][0])*b,y=inner[j][1]+(outer[j][1]-inner[j][1])*b;
-  p.push(x,y,DOOR.plane+.013-.27*t*t+.019*Math.sin(t*Math.PI*5)*Math.sin(t*Math.PI));n.push(0,0,1);
+  const t=i/rows,x=inner[j][0]+(outer[j][0]-inner[j][0])*t,y=inner[j][1]+(outer[j][1]-inner[j][1])*t;
+  const oy=FLOOR+(y-FLOOR)/K,r=bodyRadius(oy);
+  let back=Math.sqrt(Math.max(.01,r*r-x*x));
+  for(let pass=0;pass<4;pass++){const rr=r+bodyFold(Math.atan2(back,x),oy);back=Math.sqrt(Math.max(.01,rr*rr-x*x));}
+  // Match the shell tangent at the outer edge; no buried intersecting rim.
+  back+=.003;
+  const envelope=Math.sin(t*Math.PI)**2,shoulder=(.022+.012*Math.sin(t*Math.PI*4))*envelope;
+  p.push(x,y,DOOR.plane+.014+(back-DOOR.plane-.014)*smooth(t)+shoulder);n.push(0,0,1);
  }
  for(let j=0;j<cols;j++)for(let i=0;i<rows;i++){const a=j*(rows+1)+i,b=a+rows+1;ix.push(a,a+1,b,b,a+1,b+1);}
  n.fill(0);for(let k=0;k<ix.length;k+=3){const [a,b,c]=ix.slice(k,k+3),v=cross(sub(p.slice(b*3,b*3+3),p.slice(a*3,a*3+3)),sub(p.slice(c*3,c*3+3),p.slice(a*3,a*3+3)));for(const q of[a,b,c])for(let d=0;d<3;d++)n[q*3+d]+=v[d];}
  for(let k=0;k<n.length;k+=3){const v=norm(n.slice(k,k+3));n[k]=v[0];n[k+1]=v[1];n[k+2]=v[2];}return{p,n,ix};
 }
+
 // The passage through it: the doorway's outline back into the body, closed
 // there in the same dark stone.
 function passage(){
@@ -161,19 +174,21 @@ function gridNormals(p,rows,cols,inside){
  return n;
 }
 // A level mineral tongue with a rounded polished lip and shallow underside.
-// Its footprint and walking surface preserve the published entrance path.
+// The tongue curves left after the doorway; x=0 remains on its level top
+// throughout the unchanged published walk from LANDING to the threshold.
+const terraceCentre=v=>-.92*Math.pow(clamp(v),1.3);
 const terraceHalf=v=>{v=clamp(v);return Math.max(.002,(.38+.13*Math.sin(Math.min(v/.6,1)*Math.PI/2))*(v>.62?Math.sqrt(Math.max(0,1-((v-.62)/.38)**2)):1));};
 function platform(){
- const p=[],ix=[],rows=64,cols=72,{z,length}=PLATFORM,from=DOOR.back+.04,mid=FLOOR-.03,shape=[];
+ const p=[],ix=[],rows=64,cols=72,{z,length}=PLATFORM,from=DOOR.back+.04,mid=FLOOR-.012,shape=[];
  for(let i=0;i<=rows;i++){
   const zz=from+(z+length-from)*i/rows,v=clamp((zz-z)/length),w=terraceHalf(v);
-  const deep=(.075+.085*Math.sin(Math.min(1,v*1.1)*Math.PI*.9))*Math.min(1,w/.3)+.02;
-  shape.push([0,mid-deep*.3,zz]);
+  const deep=(.045+.105*Math.sin(Math.min(1,v)*Math.PI))*Math.min(1,w/.3)+.008;
+  const cx=terraceCentre(v);shape.push([cx,mid-deep*.3,zz]);
   for(let j=0;j<=cols;j++){
    const a=j/cols*TAU,c=Math.cos(a),s=Math.sin(a);
-   if(s>=0){p.push(w*Math.sign(c)*Math.pow(Math.abs(c),.42),mid+.03*Math.pow(s,.16),zz);continue;}
+   if(s>=0){p.push(cx+w*Math.sign(c)*Math.pow(Math.abs(c),.72),mid+.012*Math.pow(s,.16),zz);continue;}
    const rough=1+.018*Math.sin(v*9+a*3);
-   p.push(w*Math.sign(c)*Math.pow(Math.abs(c),.7),mid-deep*Math.pow(-s,.85)*rough,zz);
+   p.push(cx+w*Math.sign(c)*Math.pow(Math.abs(c),.82),mid-deep*Math.pow(-s,.85)*rough,zz);
   }
  }
  for(let i=0;i<rows;i++)for(let j=0;j<cols;j++){const a=i*(cols+1)+j,b=a+cols+1;ix.push(a,b,a+1,a+1,b,b+1);}
@@ -199,13 +214,12 @@ function turned(a,y){
 const onTower=(a,y,out=0)=>{const {phi}=turned(a,y),r=towerRadius(y)+out;return[TOWER[0]+r*Math.cos(phi),y,TOWER[2]+r*Math.sin(phi)];};
 const towerNormal=(a,y)=>{const {phi}=turned(a,y);return[Math.cos(phi),0,Math.sin(phi)];};
 
-// The windows, metres: a clerestory over the gallery in four bays, and the
-// room's great window behind (room-chamber.js, bay 0).
-const CLERESTORY={a:.30,sill:2.70,shoulder:3.50,peak:4.08},GREAT={a:.82,sill:.8,shoulder:3.6,peak:4.9};
-const WINDOWS=[...[3,5,7,9].map(k=>({k,...CLERESTORY})),{k:0,...GREAT}];
-// The tower's lancets, where the room has them (room-tower.js): stepped up
-// round its drum over the stair, the directions they face from its axis.
-const TOWER_WINDOWS=[[45.114,1.13],[3.514,1.7],[-38.086,2.46]].map(([d,sill])=>({at:d*DEG,a:.18,sill,shoulder:sill+1.5,peak:sill+1.85}));
+// Two slender front lancets frame the dome; the great rear window remains.
+// These exterior placements are art-directed; the room itself is unchanged.
+const CLERESTORY={a:.22,sill:2.45,shoulder:3.42,peak:4.10},GREAT={a:.82,sill:.8,shoulder:3.6,peak:4.9};
+const WINDOWS=[...[4.1666667,7.3333333].map(k=>({k,...CLERESTORY})),{k:0,...GREAT}];
+// Three staggered exterior lancets establish the tower's vertical hierarchy.
+const TOWER_WINDOWS=[[55,5.0],[85,2.9],[40,1.25]].map(([d,sill])=>({at:d*DEG,a:.18,sill,shoulder:sill+1.12,peak:sill+1.67}));
 // A frame's outline, pad metres outside an opening's (as the room's contour).
 const around=(w,pad)=>({...w,a:w.a+pad,peak:w.peak+pad});
 
@@ -276,20 +290,22 @@ function traceryGLSL(w){
 // A continuous chamber/tower skin, built ONCE after the first core frame.
 // Smooth union + marching tetrahedra; welded edges, analytic-field normals.
 // No per-frame meshing, no volume raymarch, no additional scene light.
+const SHELL_BOUNDS={lo:[-1.45,-1.52,-1.60],hi:[2.10,TOWER_TIP+.08,1.52]};
 function sanctuaryShell(){
- const step=.050,lo=[-1.22,-1.29,-1.37],hi=[1.94,TOWER_TIP+.04,1.20];
+ const step=.045,{lo,hi}=SHELL_BOUNDS;
  const [nx,ny,nz]=hi.map((v,i)=>Math.ceil((v-lo[i])/step)+1),N=nx*ny*nz;
  const values=new Float32Array(N),mesh={p:[],n:[],ix:[]},edges=new Map();
  function field(x,y,z){
-  const by=FLOOR+(y-FLOOR)/K,br=bodyRadius(clamp(by,-1.288,1.29)),a=Math.atan2(z,x);
+  const by=FLOOR+(y-FLOOR)/K,a=Math.atan2(z,x);
   const fold=bodyFold(a,by);
   const radial=Math.hypot(x,z)-fold;
   // Ellipsoidal caps keep field gradients finite at the dome and keel tips.
-  const body=by>.38?(Math.hypot(radial/1.07,(by-.38)/.91)-1)*.85:by<-.79?(Math.hypot(radial/.95,(by+.79)/.50)-1)*.48:(radial-br)*.88;
+  const body=(Math.hypot(radial/1.17,(by-.03)/(by>.03?1.26:1.48))-1)*.95;
   const h=clamp((y-TOWER_BASE)/(TOWER_TIP-TOWER_BASE)),r=towerRadius(clamp(y,TOWER_BASE,TOWER_TIP));
-  const dx=x-TOWER[0]-Math.sin(h*7.5)*.085*h*h,dz=z-TOWER[2]-Math.cos(h*7.5)*.085*h*h;
+  const dx=x-TOWER[0]-Math.sin(h*7.5)*.15*h*h,dz=z-TOWER[2]-Math.cos(h*7.5)*.085*h*h;
   const c=Math.cos(h*TWIST),sn=Math.sin(h*TWIST),tx=c*dx/STRETCH[0]-sn*dz/STRETCH[1],tz=sn*dx/STRETCH[0]+c*dz/STRETCH[1];
-  const swell=.012*Math.sin(Math.atan2(tz,tx)*2+y*3)*Math.sin(h*Math.PI);
+  const phi=Math.atan2(tz,tx),wave=.06*Math.cos(phi-.5)*Math.exp(-Math.pow((y-TOWER_ROOF)/.18,2));
+  const swell=.012*Math.sin(phi*2+y*3)*Math.sin(h*Math.PI)+towerRadius(clamp(y-wave,TOWER_BASE,TOWER_TIP))-r;
   const tower=Math.max((Math.hypot(tx,tz)-r-swell)*.9,y-TOWER_TIP,TOWER_BASE-y);
   const blend=clamp(.5+.5*(tower-body)/.34);return tower+(body-tower)*blend-.34*blend*(1-blend);
  }
@@ -300,13 +316,17 @@ function sanctuaryShell(){
   const p=point(a),q=point(b),t=values[a]/(values[a]-values[b]),v=p.map((x,i)=>x+(q[i]-x)*t),e=.001;
   for(let pass=0;pass<2;pass++){
    const g=[(field(v[0]+e,v[1],v[2])-field(v[0]-e,v[1],v[2]))/(2*e),(field(v[0],v[1]+e,v[2])-field(v[0],v[1]-e,v[2]))/(2*e),(field(v[0],v[1],v[2]+e)-field(v[0],v[1],v[2]-e))/(2*e)];
-   const d=field(...v)/Math.max(.001,g[0]*g[0]+g[1]*g[1]+g[2]*g[2]);for(let k=0;k<3;k++)v[k]-=d*g[k];
+   const d=field(...v)/Math.max(.001,g[0]*g[0]+g[1]*g[1]+g[2]*g[2]);
+   // A narrow crease must not pull a vertex past its original tetrahedron.
+   // Limit projection to a quarter-cell to prevent folded/inverted triangles.
+   const scale=Math.min(1,step*.25/Math.max(.000001,Math.abs(d)*Math.hypot(...g)));
+   for(let k=0;k<3;k++)v[k]-=d*g[k]*scale;
   }
   const n=norm([field(v[0]+e,v[1],v[2])-field(v[0]-e,v[1],v[2]),field(v[0],v[1]+e,v[2])-field(v[0],v[1]-e,v[2]),field(v[0],v[1],v[2]+e)-field(v[0],v[1],v[2]-e)]);
   const index=mesh.p.length/3;mesh.p.push(...v);mesh.n.push(...n);edges.set(key,index);return index;
  }
  function face(a,b,c){
-  const at=i=>mesh.p.slice(i*3,i*3+3),normal=mesh.n.slice(a*3,a*3+3),turn=cross(sub(at(b),at(a)),sub(at(c),at(a)));
+  const at=i=>mesh.p.slice(i*3,i*3+3),normal=[0,1,2].map(d=>mesh.n[a*3+d]+mesh.n[b*3+d]+mesh.n[c*3+d]),turn=cross(sub(at(b),at(a)),sub(at(c),at(a)));
   if(turn.reduce((v,x,i)=>v+x*normal[i],0)>0)[b,c]=[c,b];mesh.ix.push(a,b,c);
  }
  const tetra=[[0,5,1,6],[0,1,2,6],[0,2,3,6],[0,3,7,6],[0,7,4,6],[0,4,5,6]];
@@ -320,13 +340,16 @@ function sanctuaryShell(){
    else if(ins.length===2){const a=edge(ins[0],out[0]),b=edge(ins[0],out[1]),c=edge(ins[1],out[0]),d=edge(ins[1],out[1]);face(a,b,c);face(b,d,c);}
   }
  }
- const tip=lathe(towerRadius,TOWER_TIP,TOWER_TIP-.34,28,32,TOWER);
+ const tipRows=28,tipCols=32,tipBottom=TOWER_TIP-.34;
+ const tip=lathe(towerRadius,TOWER_TIP,tipBottom,tipRows,tipCols,TOWER);
  for(let i=0;i<tip.p.length;i+=3){
-  const y=tip.p[i+1],h=clamp((y-TOWER_BASE)/(TOWER_TIP-TOWER_BASE)),twist=TWIST*h,c=Math.cos(twist),sn=Math.sin(twist),x=tip.p[i]-TOWER[0],z=tip.p[i+2]-TOWER[2];
-  tip.p[i]=TOWER[0]+(c*x+sn*z)*STRETCH[0]+Math.sin(h*7.5)*.085*h*h;
+  const y=tip.p[i+1],h=clamp((y-TOWER_BASE)/(TOWER_TIP-TOWER_BASE)),twist=TWIST*h,c=Math.cos(twist),sn=Math.sin(twist),px=tip.p[i]-TOWER[0],pz=tip.p[i+2]-TOWER[2],phi=Math.atan2(pz,px),rr=Math.hypot(px,pz);
+  const swell=.012*Math.sin(phi*2+y*3)*Math.sin(h*Math.PI)+.002*(1-smooth((y-tipBottom)/.13));
+  const x=px*(1+swell/Math.max(.001,rr)),z=pz*(1+swell/Math.max(.001,rr));
+  tip.p[i]=TOWER[0]+(c*x+sn*z)*STRETCH[0]+Math.sin(h*7.5)*.15*h*h;
   tip.p[i+2]=TOWER[2]+(-sn*x+c*z)*STRETCH[1]+Math.cos(h*7.5)*.085*h*h;
  }
- tip.n=gridNormals(tip.p,28,32,i=>{const y=TOWER_TIP-.34*i/28,h=clamp((y-TOWER_BASE)/(TOWER_TIP-TOWER_BASE));return[TOWER[0]+Math.sin(h*7.5)*.085*h*h,y,TOWER[2]+Math.cos(h*7.5)*.085*h*h];});
+ tip.n=gridNormals(tip.p,tipRows,tipCols,i=>{const y=TOWER_TIP+(tipBottom-TOWER_TIP)*i/tipRows,h=clamp((y-TOWER_BASE)/(TOWER_TIP-TOWER_BASE));return[TOWER[0]+Math.sin(h*7.5)*.15*h*h,y,TOWER[2]+Math.cos(h*7.5)*.085*h*h];});
  merge(mesh,tip);
  if(mesh.p.length/3>=65536)throw Error('Sanctuary exceeds 16-bit mesh budget');return mesh;
 }
@@ -353,21 +376,21 @@ varying vec3 P,N,O;
 ${COMMON}
 vec3 skinBreath(vec3 p,vec3 original){
  float rhythm=pow(.5-.5*cos(time*.78),2.)*(1.-stillness);
- float bias=smoothstep(.79,1.30,dot(original.xz,normalize(vec3(1.2118,0.0000,(-0.6996)).xz)));
+ float bias=smoothstep(.79,1.30,dot(original.xz,normalize(${v3(TOWER)}.xz)));
  float anchor=exp(-pow(original.x/.46,4.))*smoothstep(.5,.85,original.z)*(1.-smoothstep(.34,.62,abs(original.y+.3)));
  float live=.027*rhythm*(1.-anchor)*smoothstep(-.72,.05,original.y)*(1.-smoothstep(1.65,2.1,original.y));
- vec2 axis=mix(vec2(0.),vec3(1.2118,0.0000,(-0.6996)).xz,bias);p.xz=axis+(p.xz-axis)*(1.+live*(.45+.35*sin(original.y*5.-time*1.15+original.x*1.6)));return p;
+ vec2 axis=mix(vec2(0.),${v3(TOWER)}.xz,bias);p.xz=axis+(p.xz-axis)*(1.+live*(.45+.35*sin(original.y*5.-time*1.15+original.x*1.6)));return p;
 }
 vec3 deform(vec3 p){
  float dome=ease((age-.65)/1.85),walls=ease((age-2.1)/1.9),tower=ease((age-3.05)/2.1),entry=ease((age-4.85)/.65),landing=ease((age-5.45)/1.15);
  float rhythm=pow(.5-.5*cos(time*.78),2.)*(1.-stillness);
  float life=.034*rhythm;
  if(part>9.5){
-  float bias=smoothstep(.79,1.30,dot(p.xz,normalize(vec3(1.2118,0.0000,(-0.6996)).xz)));
+  float bias=smoothstep(.79,1.30,dot(p.xz,normalize(${v3(TOWER)}.xz)));
   vec3 bp=p;float by=(-0.7800)+(p.y-(-0.7800))/0.8454,roof=step(.38,by);
   bp.xz*=max(.001,dome);bp.y=(-0.7800)+(mix(1.50,mix(.38,by,roof+(1.-roof)*walls),dome)-(-0.7800))*0.8454;
-  vec3 tp=p-vec3(1.2118,0.0000,(-0.6996));float h=sat((p.y-(-1.0800))/3.1782),grow=ease(tower*1.3-h*.3),twist=(1.-tower)*4.*h*h;
-  float c=cos(twist),s=sin(twist);tp.xz=mat2(c,-s,s,c)*tp.xz*max(.001,grow);tp.y=mix(-.35,p.y,tower);tp.xz+=vec3(1.2118,0.0000,(-0.6996)).xz;p=mix(bp,tp,bias);
+  vec3 tp=p-${v3(TOWER)};float h=sat((p.y-${f(TOWER_BASE)})/${f(TOWER_TIP-TOWER_BASE)}),grow=ease(tower*1.3-h*.3),twist=(1.-tower)*4.*h*h;
+  float c=cos(twist),s=sin(twist);tp.xz=mat2(c,-s,s,c)*tp.xz*max(.001,grow);tp.y=mix(-.35,p.y,tower);tp.xz+=${v3(TOWER)}.xz;p=mix(bp,tp,bias);
   return skinBreath(p,position);
 
  }
@@ -386,7 +409,7 @@ vec3 deform(vec3 p){
   float twist=(1.-tower)*5.*h*h+1.5*h;
   float c=cos(twist),s=sin(twist);
   q.xz=mat2(c,-s,s,c)*q.xz*vec2(1.08,.94)*max(.001,grow);
-  q.xz+=vec2(sin(h*7.5),cos(h*7.5))*.085*h*h*tower;
+  q.xz+=vec2(sin(h*7.5)*.15,cos(h*7.5)*.085)*h*h*tower;
   q.y=mix(-.35,q.y,tower);
   p=q+${v3(TOWER)};return skinBreath(p,p);
  }else if(part<3.5||part>8.5){
@@ -581,7 +604,7 @@ ${FS_OPEN}
   gl_FragColor=vec4(tonemap(c)*a,a);return;
  }
  bool shell=part>9.5;
- bool towerSkin=(part>.5&&part<1.5)||(shell&&dot(O.xz,normalize(vec3(1.2118,0.0000,(-0.6996)).xz))>1.1);
+ bool towerSkin=(part>.5&&part<1.5)||(shell&&dot(O.xz,normalize(${v3(TOWER)}.xz))>1.1);
  vec3 q=O;if(shell&&!towerSkin)q.y=(-0.7800)+(O.y-(-0.7800))/0.8454;
  if(towerSkin&&!shell)q=(O-${v3(TOWER)})*vec3(1.6,1.0,1.6);
  if(shell)q=O*vec3(1.,1.18,1.);
@@ -629,23 +652,22 @@ ${FS_OPEN}
  vec4 win=vec4(0.),w=vec4(0.,0.,0.,-1.);float edge=9.,deep=.22,great=0.,aa=1.;
  vec2 face=vec2(0.);vec3 wall=vec3(0.,0.,1.);
  if(part<.5||(shell&&!towerSkin)){
-  float phi=atan(O.z,O.x),k=mod(floor((phi+${f(Math.PI/2+Math.PI/12)})/${f(Math.PI/6)}),12.);
-  float d=phi-(${f(-Math.PI/2)}+k*${f(Math.PI/6)});d-=${f(TAU)}*floor((d+${f(Math.PI)})/${f(TAU)});
-  face=vec2(d*length(O.xz)/${f(S)},(O.y-${f(FLOOR)})/(shell?${f(S)}:${f(BODY_UP)}));
-  // Pixel footprint in continuous world coordinates avoids seams where bays wrap.
+  float phi=atan(O.z,O.x),closest=9.;
   aa=length(fwidth(O))/${f(S)};
   wall=normalize(vec3(P.x,0.,P.z));
-  if(k<.5){w=${w4(GREAT)};deep=.30;great=1.;}
-  else if(abs(k-3.)<.5||abs(k-5.)<.5||abs(k-7.)<.5||abs(k-9.)<.5)w=${w4(CLERESTORY)};
+${WINDOWS.map(t=>`  {float d=phi-${f(BAY(t.k))};d-=${f(TAU)}*floor((d+${f(Math.PI)})/${f(TAU)});
+   if(abs(d)<closest){closest=abs(d);face=vec2(d*length(O.xz)/${f(S)},(O.y-${f(FLOOR)})/(shell?${f(S)}:${f(BODY_UP)}));w=${w4(t)};great=${f(t.k===0?1:0)};deep=${f(t.k===0?.3:.22)};}}`).join('\n')}
  }else if(towerSkin){
   vec3 o=O-${v3(TOWER)};
-  float h=sat((O.y-${f(TOWER_BASE)})/${f(TOWER_TIP-TOWER_BASE)}),psi=atan(o.z,o.x)-${f(TWIST)}*h;
+  float h=sat((O.y-${f(TOWER_BASE)})/${f(TOWER_TIP-TOWER_BASE)});
+  if(shell)o.xz-=vec2(sin(h*7.5)*.15,cos(h*7.5)*.085)*h*h;
+  float psi=atan(o.z,o.x)-${f(TWIST)}*h;
   vec2 e=vec2(${f(STRETCH[0])}*cos(psi),${f(STRETCH[1])}*sin(psi));
   float dir=shell?atan(o.z,o.x):atan(e.y,e.x),r=length(o.xz)*(shell?1.:length(e)),m=(O.y-${f(FLOOR)})/${f(S)};
   aa=length(fwidth(O))/${f(S)};
   wall=vec3(cos(dir),0.,sin(dir));deep=.24;
 ${TOWER_WINDOWS.map(t=>`  {float d=dir-${f(t.at)};d-=${f(TAU)}*floor((d+${f(Math.PI)})/${f(TAU)});
-   if(abs(d*r)<${f(.6*S)}){face=vec2(d*r/${f(S)},m);w=${w4(t)};}}`).join('\n')}
+   if(abs(d*r)<${f(.6*S)}&&m>${f(t.sill-.15)}&&m<${f(t.peak+.15)}){face=vec2(d*r/${f(S)},m);w=${w4(t)};}}`).join('\n')}
  }
  if(w.w>0.)win=niche(face,-V,wall,w,deep,great,aa,edge);
  color=mix(color,win.rgb,win.a);
@@ -680,6 +702,7 @@ vec3 bronze(vec3 n,vec3 V,vec3 inward){
 // (terraceHalf).
 float terrace(vec2 o){
  float v=max(0.,(o.y-${f(PLATFORM.z)})/${f(PLATFORM.length)});
+ o.x+=.92*pow(sat(v),1.3);
  if(v<=.62)return .38+.13*sin(min(v/.6,1.)*1.5708)-abs(o.x);
  return (1.-length(vec2(o.x/.51,(v-.62)/.38)))*.51;
 }
@@ -815,9 +838,10 @@ function walked(u,a=.2,b=.3){
 const landing=()=>({x:0,y:entry.y,z:DOOR_Z+LANDING,yaw:0,tilt:entry.tilt,lens:.5});
 function pose(){
  const rhythm=reduced?0:Math.pow(.5-.5*Math.cos(time*.78),2);
- // (Framed on the body and the tower together.)
- const far=[-.02+Math.sin(time*.21)*.10*rhythm,.40+Math.sin(time*.35)*.055*rhythm,6.7],look=[.28,.40,0];
- const fov=Math.max(.68,2*Math.atan(1.86/(screenW/screenH*6.7)));
+ // Concept-B reference framing. Keep the inherited idle drift and flight.
+ const far=[2.37+Math.sin(time*.21)*.10*rhythm,1.73+Math.sin(time*.35)*.055*rhythm,11.25],look=[-.02,.12,.03];
+ const aspect=screenW/screenH,halfWidth=2.14+.26*(1-smooth((aspect-.65)/.35));
+ const fov=Math.max(.378,2*Math.atan(halfWidth/(aspect*11.6)));
  if(!flight)return{eye:far,target:look,fov,lens:.5,curtain:0,reveal:0,fade:0,sky:0,view:null};
  const t=time-flight.start,sky=smooth(t/.6),A=ENTRY.approach,B=A+ENTRY.arrival,C=B+ENTRY.curtains,D=C+ENTRY.walk,lens=entry.fov*Math.PI/180;
  // A view in the room's terms, here (looking on to the doorway from outside).
@@ -995,7 +1019,7 @@ onmessage=({data:d})=>{
    parallel=gl.getExtension('KHR_parallel_shader_compile');
    const made={glass:program(VERTEX,FRAGMENT),halo:program(HALO_VS,HALO_FS),sky:program(SKY_VS,SKY_FS),hole:program(HOLE_VS,HOLE_FS)};
    pg=Object.fromEntries(Object.entries(made).map(([name,made])=>[name,linked(made)]));
-   meshes={core:upload(lathe(y=>Math.sqrt(Math.max(0,.17**2-y*y)),.17,-.17,40,64,CORE)),
+   meshes={core:upload(lathe(y=>Math.sqrt(Math.max(0,.145**2-y*y)),.145,-.145,40,64,CORE)),
     feed:upload(lathe(y=>.006+.014*Math.sin((y-1.22)/.38*Math.PI),1.60,1.22,28,24)),
     porch:upload(porch()),tunnel:upload(passage()),left:upload(curtain(-1)),right:upload(curtain(1)),hole:upload(hole())};
    meshes.quad=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,meshes.quad);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);

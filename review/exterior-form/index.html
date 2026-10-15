@@ -1,0 +1,31 @@
+﻿<!doctype html>
+<html lang="nb">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Konsept B — fase 1: form og kamera</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b0c10;color:#d6dce0;font:16px/1.6 system-ui,sans-serif}main{max-width:1440px;margin:auto;padding:32px}h1{font:400 clamp(26px,3vw,40px)/1.2 Georgia,serif;color:#f1e8d9}h2{font-size:19px;font-weight:500}p{max-width:900px}a{color:#a0d5cd}.intro{color:#aeb6c3}.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px}.panel{margin:0;background:#07080c;border:1px solid #283039;overflow:hidden}.panel figcaption{padding:12px 16px;font-size:14px}.square{aspect-ratio:1;overflow:hidden;position:relative;background:#07070c}.square>img{display:block;width:100%;height:100%;object-fit:cover}.square.reference>img{max-width:none;width:150%;height:100%;object-fit:fill;object-position:left}.panel>img{display:block;width:100%}.full{margin-top:24px}button{background:#122428;border:1px solid #44706d;color:#d9eeea;padding:10px 15px;cursor:pointer;border-radius:4px}button[aria-pressed=true]{background:#315351}nav{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}.notes{border-left:2px solid #47756e;padding-left:18px}.detail{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:32px 0}.mobile{max-width:280px}footer{border-top:1px solid #283039;margin-top:32px;padding-top:20px;color:#aeb6c3} @media(max-width:800px){main{padding:18px}.pair,.detail{grid-template-columns:1fr}}
+</style>
+<main>
+<h1>Konsept B — fase 1: form og kamera</h1>
+<p class="intro">Referansen er designfasiten. Denne gjennomgangen gjelder hovedform, proporsjoner, folder, tårn, inngang, landing og kameravinkel. Bildet til høyre er et faktisk skjermbilde av 3D-versjonen, med de eksisterende materialene og lysene.</p>
+<nav aria-label="Sammenligning"><button data-mode="concept" aria-pressed="true">Konsept / fase 1</button><button data-mode="before" aria-pressed="false">Før / etter, samme kamera</button><a href="../../dev/living-exterior-preview.html">Åpne levende 3D-forhåndsvisning</a><a href="../../">Prøv hele inngangen</a></nav>
+<div class="pair">
+<figure class="panel"><div id="leftFrame" class="square reference"><img id="leftImage" src="../exterior-visual-upgrade/concept-b.png" alt="Godkjent konsept B"></div><figcaption id="leftCaption">Designfasit — utsnitt av hovedbildet i konsept B</figcaption></figure>
+<figure class="panel"><div class="square"><img src="evidence/phase1.png" alt="Fase 1, faktisk 3D-skjermbilde"></div><figcaption>Fase 1 — 1024 × 1024, tid 8,05 s, eksisterende materialer og lys</figcaption></figure>
+</div>
+<p class="notes">Den runde hovedkroppen, tårnets plassering og spiss, dørens høyde og landingens utstrekning er lagt nærmere referansen. Folder og dørinnramming er formet i geometri. Bildet er fortsatt mørkere og mindre gjennomlyst enn fasiten; materialer, glassdybde og lyssetting er ikke bearbeidet i fase 1.</p>
+<p><strong>Gjenst?r ? vurdere i formen:</strong> Foldene er jevnere og d?rinnrammingen tyngre enn i konseptet. Undersiden og landingen har fortsatt mindre raffinerte overganger. Materialer, lys og animasjoner venter p? din godkjenning av fase 1.</p>
+<p>De innsamlede kontrollene viser fungerende inngang og readiness, ingen konsollfeil i sluttbildene og omtrent 30 bilder per sekund. Formen har h?yere GPU-kostnad og tar lengre tid ? bygge ved oppstart. <a href="../../EXTERIOR_FORM_PHASE1.md">Les full handoff og m?linger</a>.</p>
+<div class="detail">
+<figure class="panel"><img src="evidence/entrance.png" alt="Nærbilde av inngangen"><figcaption>Inngang — samme døråpning og ganglinje som før</figcaption></figure>
+<figure class="panel"><img src="evidence/threequarter.png" alt="Bygningen fra en annen vinkel"><figcaption>Kontrollvinkel — faktisk tredimensjonal form</figcaption></figure>
+</div>
+<details><summary>Mobil innramming</summary><img class="mobile" src="evidence/mobile.png" alt="Fase 1 ved 390 × 844 piksler"></details>
+<footer>Isolert gren: <code>feature/exterior-b-form-camera</code>. Utgangspunkt: <code>6e61372</code>. Ingen merge, push eller publisering. Fase 2 venter på godkjenning.</footer>
+</main>
+<script>
+const image=document.getElementById('leftImage'),frame=document.getElementById('leftFrame'),caption=document.getElementById('leftCaption');
+for(const button of document.querySelectorAll('button[data-mode]'))button.addEventListener('click',()=>{const concept=button.dataset.mode==='concept';image.src=concept?'../exterior-visual-upgrade/concept-b.png':'evidence/before-matched.png';image.alt=concept?'Godkjent konsept B':'Tidligere implementering fra samme kamera';frame.classList.toggle('reference',concept);caption.textContent=concept?'Designfasit — utsnitt av hovedbildet i konsept B':'Før — 6e61372 vist fra fase 1-kameraet';for(const b of document.querySelectorAll('button[data-mode]'))b.setAttribute('aria-pressed',String(b===button));});
+</script>
+</html>
