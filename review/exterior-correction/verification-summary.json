@@ -1,0 +1,755 @@
+{
+  "reviewDate": "2026-10-17",
+  "branch": "feature/exterior-b-form-camera",
+  "baseline": "4304dd7",
+  "sourceHash": "cb643aaa893aada0a205bfec4fe0c3f7c5c6e07ad076b0eaddec1ef65a5644b3",
+  "status": "Verified local correction; awaiting visual approval",
+  "geometryCamera": {
+    "status": "PASS",
+    "baseline": "4304dd7",
+    "geometry": "unchanged",
+    "doorAndRoom": "unchanged",
+    "sharedEntry": "unchanged",
+    "presentationYawDegrees": 10,
+    "sourceHash": "cb643aaa893aada0a205bfec4fe0c3f7c5c6e07ad076b0eaddec1ef65a5644b3",
+    "views": [
+      {
+        "viewport": [
+          1024,
+          1024
+        ],
+        "before": {
+          "eye": [
+            2.370000000001904,
+            1.730000000000336,
+            11.25
+          ],
+          "target": [
+            -0.02,
+            0.12,
+            0.03
+          ],
+          "door": [
+            448.17171874774135,
+            706.6024541199376,
+            10.416019810763299
+          ],
+          "azimuth": 11.89635805027671,
+          "doorObliqueness": 13.418616667923953
+        },
+        "after": {
+          "eye": [
+            0.38045237588784153,
+            1.730000000000336,
+            11.490633402458295
+          ],
+          "target": [
+            -0.04823754330983451,
+            0.12,
+            0.026071269037027632
+          ],
+          "door": [
+            512.0000001549638,
+            708.1539554713635,
+            10.388247079678475
+          ],
+          "azimuth": 1.8963580502767095,
+          "doorObliqueness": 2.141441142784013
+        },
+        "bounds": [
+          152.2334113148193,
+          39.04290854223291,
+          941.0829534635027,
+          924.7124940811959
+        ]
+      },
+      {
+        "viewport": [
+          1600,
+          1000
+        ],
+        "before": {
+          "eye": [
+            2.370000000001904,
+            1.730000000000336,
+            11.25
+          ],
+          "target": [
+            -0.02,
+            0.12,
+            0.03
+          ],
+          "door": [
+            737.6676954527816,
+            690.0414591015016,
+            10.416019810763299
+          ],
+          "azimuth": 11.89635805027671,
+          "doorObliqueness": 13.418616667923953
+        },
+        "after": {
+          "eye": [
+            0.38045237588784153,
+            1.730000000000336,
+            11.490633402458295
+          ],
+          "target": [
+            -0.04823754330983451,
+            0.12,
+            0.026071269037027632
+          ],
+          "door": [
+            800.0000005289012,
+            691.5565971400034,
+            10.388247079678475
+          ],
+          "azimuth": 1.8963580502767095,
+          "doorObliqueness": 2.141441142784013
+        },
+        "bounds": [
+          448.665423376357,
+          38.127840373274324,
+          1219.0263436754612,
+          903.0395450011679
+        ]
+      },
+      {
+        "viewport": [
+          390,
+          844
+        ],
+        "before": {
+          "eye": [
+            2.370000000001904,
+            1.730000000000336,
+            11.25
+          ],
+          "target": [
+            -0.02,
+            0.12,
+            0.03
+          ],
+          "door": [
+            172.52493185685108,
+            490.52297061974224,
+            10.416019810763299
+          ],
+          "azimuth": 11.89635805027671,
+          "doorObliqueness": 13.418616667923953
+        },
+        "after": {
+          "eye": [
+            0.38045237588784153,
+            1.730000000000336,
+            11.490633402458295
+          ],
+          "target": [
+            -0.04823754330983451,
+            0.12,
+            0.026071269037027632
+          ],
+          "door": [
+            194.9999998372351,
+            491.06928656472934,
+            10.388247079678475
+          ],
+          "azimuth": 1.8963580502767095,
+          "doorObliqueness": 2.141441142784013
+        },
+        "bounds": [
+          68.31980117869455,
+          255.46341599680062,
+          346.0877202573892,
+          567.3233890642398
+        ]
+      },
+      {
+        "viewport": [
+          844,
+          390
+        ],
+        "before": {
+          "eye": [
+            2.370000000001904,
+            1.730000000000336,
+            11.25
+          ],
+          "target": [
+            -0.02,
+            0.12,
+            0.03
+          ],
+          "door": [
+            397.6904021621791,
+            269.1161690495856,
+            10.416019810763299
+          ],
+          "azimuth": 11.89635805027671,
+          "doorObliqueness": 13.418616667923953
+        },
+        "after": {
+          "eye": [
+            0.38045237588784153,
+            1.730000000000336,
+            11.490633402458295
+          ],
+          "target": [
+            -0.04823754330983451,
+            0.12,
+            0.026071269037027632
+          ],
+          "door": [
+            422.0000001451272,
+            269.7070728846013,
+            10.388247079678475
+          ],
+          "azimuth": 1.8963580502767095,
+          "doorObliqueness": 2.141441142784013
+        },
+        "bounds": [
+          284.9795240029303,
+          14.869857745576986,
+          585.4202631898376,
+          352.1854225504555
+        ]
+      }
+    ]
+  },
+  "captures": {
+    "artifact": "verification/exterior-form/correction-final/",
+    "sourceHash": "cb643aaa893aada0a205bfec4fe0c3f7c5c6e07ad076b0eaddec1ef65a5644b3",
+    "errors": [],
+    "warnings": [],
+    "selectedImages": "review/exterior-correction/evidence/",
+    "time": 8.05,
+    "devicePixelRatio": 1
+  },
+  "performance": {
+    "paired": {
+      "artifact": "verification/exterior-correction/paired-final/performance.json",
+      "conditions": "Headless Chrome ANGLE D3D11; one fresh temporary Chrome profile for interleaved before/after/after/before at each viewport, DPR1; both shaders use corrected camera; 12.5 sec idle after seek(8.05); target idle 30fps. GPU query approximately every 30 drawn frames. No simultaneous test browser. Each page creates a fresh worker.",
+      "sourceHashes": {
+        "before": "7b87ade050b7f2037b7433ba67716b46fbabe5554a8570ce26a9c725949ca738",
+        "after": "cb643aaa893aada0a205bfec4fe0c3f7c5c6e07ad076b0eaddec1ef65a5644b3"
+      },
+      "browser": "Chrome/155.0.8059.40",
+      "gpu": [
+        {
+          "vendorId": 32902,
+          "deviceId": 39497,
+          "subSysId": 1067194282,
+          "revision": 1,
+          "vendorString": "",
+          "deviceString": "Intel(R) Iris(R) Xe Graphics",
+          "driverVendor": "Intel",
+          "driverVersion": "32.0.101.6881"
+        },
+        {
+          "vendorId": 5140,
+          "deviceId": 140,
+          "subSysId": 0,
+          "revision": 0,
+          "vendorString": "",
+          "deviceString": "Microsoft Basic Render Driver",
+          "driverVendor": "",
+          "driverVersion": "10.0.26100.9549"
+        }
+      ],
+      "summary": [
+        {
+          "variant": "before",
+          "sourceHash": "7b87ade050b7f2037b7433ba67716b46fbabe5554a8570ce26a9c725949ca738",
+          "size": [
+            1600,
+            1000
+          ],
+          "firstDrawMs": 3711.399999976158,
+          "buildMs": 5206.199999988079,
+          "triangles": 147638,
+          "drawCalls": 13,
+          "gpuN": 4,
+          "gpuMedianMs": 26.953906,
+          "gpuP95Ms": 27.780468,
+          "cpuMedianMs": 0.5,
+          "cpuP95Ms": 1.4000000357627869,
+          "frameMedianMs": 49,
+          "frameP95Ms": 49.80000000000109
+        },
+        {
+          "variant": "after",
+          "sourceHash": "cb643aaa893aada0a205bfec4fe0c3f7c5c6e07ad076b0eaddec1ef65a5644b3",
+          "size": [
+            1600,
+            1000
+          ],
+          "firstDrawMs": 2424.900000035763,
+          "buildMs": 5291.600000023842,
+          "triangles": 147638,
+          "drawCalls": 13,
+          "gpuN": 4,
+          "gpuMedianMs": 14.416979,
+          "gpuP95Ms": 14.422916,
+          "cpuMedianMs": 0.40000003576278687,
+          "cpuP95Ms": 0.800000011920929,
+          "frameMedianMs": 49.30000000000109,
+          "frameP95Ms": 50.20000000000073
+        },
+        {
+          "variant": "after",
+          "sourceHash": "cb643aaa893aada0a205bfec4fe0c3f7c5c6e07ad076b0eaddec1ef65a5644b3",
+          "size": [
+            1600,
+            1000
+          ],
+          "firstDrawMs": 267.9000000357628,
+          "buildMs": 5327.300000011921,
+          "triangles": 147638,
+          "drawCalls": 13,
+          "gpuN": 5,
+          "gpuMedianMs": 14.485729,
+          "gpuP95Ms": 14.573384,
+          "cpuMedianMs": 0.5999999642372131,
+          "cpuP95Ms": 1.4000000357627869,
+          "frameMedianMs": 49.5,
+          "frameP95Ms": 50.20000000000073
+        },
+        {
+          "variant": "before",
+          "sourceHash": "7b87ade050b7f2037b7433ba67716b46fbabe5554a8570ce26a9c725949ca738",
+          "size": [
+            1600,
+            1000
+          ],
+          "firstDrawMs": 261.89999997615814,
+          "buildMs": 5377.600000023842,
+          "triangles": 147638,
+          "drawCalls": 13,
+          "gpuN": 5,
+          "gpuMedianMs": 13.743906,
+          "gpuP95Ms": 16.375104,
+          "cpuMedianMs": 0.5,
+          "cpuP95Ms": 1,
+          "frameMedianMs": 49.30000000000109,
+          "frameP95Ms": 50.5
+        },
+        {
+          "variant": "before",
+          "sourceHash": "7b87ade050b7f2037b7433ba67716b46fbabe5554a8570ce26a9c725949ca738",
+          "size": [
+            390,
+            844
+          ],
+          "firstDrawMs": 533.5,
+          "buildMs": 5180.800000011921,
+          "triangles": 147638,
+          "drawCalls": 13,
+          "gpuN": 5,
+          "gpuMedianMs": 6.872343,
+          "gpuP95Ms": 7.740312,
+          "cpuMedianMs": 0.3999999761581421,
+          "cpuP95Ms": 0.800000011920929,
+          "frameMedianMs": 49.20000000000073,
+          "frameP95Ms": 50
+        },
+        {
+          "variant": "after",
+          "sourceHash": "cb643aaa893aada0a205bfec4fe0c3f7c5c6e07ad076b0eaddec1ef65a5644b3",
+          "size": [
+            390,
+            844
+          ],
+          "firstDrawMs": 235.60000002384186,
+          "buildMs": 4090.199999988079,
+          "triangles": 147638,
+          "drawCalls": 13,
+          "gpuN": 6,
+          "gpuMedianMs": 7.341926,
+          "gpuP95Ms": 7.362864,
+          "cpuMedianMs": 0.40000003576278687,
+          "cpuP95Ms": 0.800000011920929,
+          "frameMedianMs": 49.5,
+          "frameP95Ms": 50.399999999999636
+        },
+        {
+          "variant": "after",
+          "sourceHash": "cb643aaa893aada0a205bfec4fe0c3f7c5c6e07ad076b0eaddec1ef65a5644b3",
+          "size": [
+            390,
+            844
+          ],
+          "firstDrawMs": 273,
+          "buildMs": 5503.600000023842,
+          "triangles": 147638,
+          "drawCalls": 13,
+          "gpuN": 5,
+          "gpuMedianMs": 7.230572,
+          "gpuP95Ms": 7.639947,
+          "cpuMedianMs": 0.699999988079071,
+          "cpuP95Ms": 1.399999976158142,
+          "frameMedianMs": 49.30000000000018,
+          "frameP95Ms": 50.20000000000073
+        },
+        {
+          "variant": "before",
+          "sourceHash": "7b87ade050b7f2037b7433ba67716b46fbabe5554a8570ce26a9c725949ca738",
+          "size": [
+            390,
+            844
+          ],
+          "firstDrawMs": 263.69999998807907,
+          "buildMs": 5404.199999988079,
+          "triangles": 147638,
+          "drawCalls": 13,
+          "gpuN": 5,
+          "gpuMedianMs": 6.903697,
+          "gpuP95Ms": 7.76302,
+          "cpuMedianMs": 0.800000011920929,
+          "cpuP95Ms": 1.5,
+          "frameMedianMs": 49.19999999999891,
+          "frameP95Ms": 50.100000000000364
+        }
+      ],
+      "errors": [],
+      "warnings": []
+    },
+    "independentRuns": [
+      {
+        "artifact": "verification/exterior-form/correction-baseline-a/performance.json",
+        "ref": "4304dd7",
+        "sourceHash": "7b87ade050b7f2037b7433ba67716b46fbabe5554a8570ce26a9c725949ca738",
+        "matchCamera": false,
+        "summary": [
+          {
+            "size": [
+              1600,
+              1000
+            ],
+            "firstDrawMs": 1258.7999999523163,
+            "buildMs": 1411.5,
+            "triangles": 147638,
+            "drawCalls": 13,
+            "gpuN": 11,
+            "gpuMedianMs": 6.272656,
+            "gpuP95Ms": 11.094687,
+            "cpuMedianMs": 0.19999998807907104,
+            "cpuP95Ms": 0.8999999761581421,
+            "frameMedianMs": 33.30000000000018,
+            "frameP95Ms": 33.599999999998545
+          },
+          {
+            "size": [
+              390,
+              844
+            ],
+            "firstDrawMs": 770.3000000119209,
+            "buildMs": 1247.5999999642372,
+            "triangles": 147638,
+            "drawCalls": 13,
+            "gpuN": 11,
+            "gpuMedianMs": 4.511302,
+            "gpuP95Ms": 13.11125,
+            "cpuMedianMs": 0.19999998807907104,
+            "cpuP95Ms": 0.3999999761581421,
+            "frameMedianMs": 33.30000000000018,
+            "frameP95Ms": 33.5
+          }
+        ],
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "artifact": "verification/exterior-form/correction-after-a/performance.json",
+        "ref": "working-tree",
+        "sourceHash": "a17ba732c39afeca87ec6f005a2c1fd04c1e05d923d85acd0893227e7e0de2a9",
+        "matchCamera": false,
+        "summary": [
+          {
+            "size": [
+              1600,
+              1000
+            ],
+            "firstDrawMs": 1021.8000000119209,
+            "buildMs": 1540.800000011921,
+            "triangles": 147638,
+            "drawCalls": 13,
+            "gpuN": 11,
+            "gpuMedianMs": 9.120833,
+            "gpuP95Ms": 19.024114,
+            "cpuMedianMs": 0.19999998807907104,
+            "cpuP95Ms": 0.5,
+            "frameMedianMs": 33.30000000000018,
+            "frameP95Ms": 33.600000000000364
+          },
+          {
+            "size": [
+              390,
+              844
+            ],
+            "firstDrawMs": 856.6000000238419,
+            "buildMs": 1215,
+            "triangles": 147638,
+            "drawCalls": 13,
+            "gpuN": 11,
+            "gpuMedianMs": 4.596562,
+            "gpuP95Ms": 15.024062,
+            "cpuMedianMs": 0.19999998807907104,
+            "cpuP95Ms": 0.3999999761581421,
+            "frameMedianMs": 33.30000000000018,
+            "frameP95Ms": 33.5
+          }
+        ],
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "artifact": "verification/exterior-form/correction-baseline-matched/performance.json",
+        "ref": "4304dd7",
+        "sourceHash": "7b87ade050b7f2037b7433ba67716b46fbabe5554a8570ce26a9c725949ca738",
+        "matchCamera": true,
+        "summary": [
+          {
+            "size": [
+              1600,
+              1000
+            ],
+            "firstDrawMs": 1157.6000000238419,
+            "buildMs": 1634,
+            "triangles": 147638,
+            "drawCalls": 13,
+            "gpuN": 11,
+            "gpuMedianMs": 6.513593,
+            "gpuP95Ms": 20.106302,
+            "cpuMedianMs": 0.20000004768371582,
+            "cpuP95Ms": 0.699999988079071,
+            "frameMedianMs": 33.30000000000018,
+            "frameP95Ms": 33.69999999999982
+          },
+          {
+            "size": [
+              390,
+              844
+            ],
+            "firstDrawMs": 250.10000002384186,
+            "buildMs": 1927.6000000238419,
+            "triangles": 147638,
+            "drawCalls": 13,
+            "gpuN": 11,
+            "gpuMedianMs": 4.435729,
+            "gpuP95Ms": 15.335052,
+            "cpuMedianMs": 0.20000004768371582,
+            "cpuP95Ms": 0.699999988079071,
+            "frameMedianMs": 33.30000000000018,
+            "frameP95Ms": 33.400000000001455
+          }
+        ],
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "artifact": "verification/exterior-form/correction-final-perf-a/performance.json",
+        "ref": "working-tree",
+        "sourceHash": "cb643aaa893aada0a205bfec4fe0c3f7c5c6e07ad076b0eaddec1ef65a5644b3",
+        "matchCamera": false,
+        "summary": [
+          {
+            "size": [
+              1600,
+              1000
+            ],
+            "firstDrawMs": 1564.800000011921,
+            "buildMs": 2200.400000035763,
+            "triangles": 147638,
+            "drawCalls": 13,
+            "gpuN": 10,
+            "gpuMedianMs": 10.812187,
+            "gpuP95Ms": 21.222447,
+            "cpuMedianMs": 0.40000003576278687,
+            "cpuP95Ms": 1.300000011920929,
+            "frameMedianMs": 33.30000000000018,
+            "frameP95Ms": 33.70000000000073
+          },
+          {
+            "size": [
+              390,
+              844
+            ],
+            "firstDrawMs": 282,
+            "buildMs": 1724.6000000238419,
+            "triangles": 147638,
+            "drawCalls": 13,
+            "gpuN": 11,
+            "gpuMedianMs": 7.236041,
+            "gpuP95Ms": 21.027135,
+            "cpuMedianMs": 0.2999999523162842,
+            "cpuP95Ms": 0.5,
+            "frameMedianMs": 33.30000000000018,
+            "frameP95Ms": 33.5
+          }
+        ],
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "artifact": "verification/exterior-form/correction-final-baseline/performance.json",
+        "ref": "4304dd7",
+        "sourceHash": "7b87ade050b7f2037b7433ba67716b46fbabe5554a8570ce26a9c725949ca738",
+        "matchCamera": true,
+        "summary": [
+          {
+            "size": [
+              1600,
+              1000
+            ],
+            "firstDrawMs": 1319.300000011921,
+            "buildMs": 1798,
+            "triangles": 147638,
+            "drawCalls": 13,
+            "gpuN": 7,
+            "gpuMedianMs": 13.658125,
+            "gpuP95Ms": 16.399895,
+            "cpuMedianMs": 0.30000001192092896,
+            "cpuP95Ms": 0.7000000476837158,
+            "frameMedianMs": 48.899999999999636,
+            "frameP95Ms": 49.899999999999636
+          },
+          {
+            "size": [
+              390,
+              844
+            ],
+            "firstDrawMs": 505.0999999642372,
+            "buildMs": 5405.600000023842,
+            "triangles": 147638,
+            "drawCalls": 13,
+            "gpuN": 5,
+            "gpuMedianMs": 6.894739,
+            "gpuP95Ms": 6.923281,
+            "cpuMedianMs": 0.3999999761581421,
+            "cpuP95Ms": 0.7000000476837158,
+            "frameMedianMs": 49.30000000000109,
+            "frameP95Ms": 50.399999999999636
+          }
+        ],
+        "errors": [],
+        "warnings": []
+      }
+    ],
+    "interpretation": "Stable interleaved samples suggest about +5.1% desktop / +5.8% narrow GPU cost; first desktop baseline 26.954 ms retained as outlier. Both sources ran about 20fps in final series vs about 30fps in earlier runs. Cause of cadence variation unestablished. Only 4-6 GPU queries per final sample. Not a universal percentage or physical mobile result.",
+    "unchanged": {
+      "triangles": 147638,
+      "instrumentedDrawCalls": 13,
+      "additionalCoreHaloDraws": 1,
+      "noiseAtlasBytes": 262144
+    }
+  },
+  "lifecycle": {
+    "command": "node tests/living-lifecycle-check.mjs --actual-only --out=exterior-correction",
+    "exitCode": 0,
+    "cases": [
+      {
+        "name": "after-cold",
+        "readyAt": 23505,
+        "formationAt": 24427,
+        "enteredAt": 35470,
+        "way": "flight",
+        "ready": "ready",
+        "guardSamples": 485,
+        "preEntryUnlocked": 0,
+        "disposed": true,
+        "cleanup": {
+          "worker": true,
+          "observer": true,
+          "listeners": true
+        },
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "name": "after-warm",
+        "readyAt": 23908,
+        "formationAt": 30693,
+        "enteredAt": 41755,
+        "way": "flight",
+        "ready": "ready",
+        "guardSamples": 738,
+        "preEntryUnlocked": 0,
+        "disposed": true,
+        "cleanup": {
+          "worker": true,
+          "observer": true,
+          "listeners": true
+        },
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "name": "mobile-reduced",
+        "readyAt": 6610,
+        "formationAt": 7609,
+        "enteredAt": 8079,
+        "way": "fade",
+        "ready": "ready",
+        "guardSamples": 76,
+        "preEntryUnlocked": 0,
+        "disposed": true,
+        "cleanup": {
+          "worker": true,
+          "observer": true,
+          "listeners": true
+        },
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "name": "no-webgl",
+        "readyAt": 1499,
+        "formationAt": 13600,
+        "enteredAt": 24633,
+        "way": "flight",
+        "ready": "fallback",
+        "guardSamples": 946,
+        "preEntryUnlocked": 0,
+        "disposed": true,
+        "cleanup": {
+          "worker": true,
+          "observer": true,
+          "listeners": true
+        },
+        "errors": [],
+        "warnings": [
+          "Portal surface uses a CSS fallback: WebGL unavailable",
+          "Portal uses CSS material: WebGL unavailable",
+          "Portal interior uses CSS fallback: WebGL unavailable"
+        ]
+      }
+    ],
+    "additionalAssertionsPassed": [
+      "Missing orb: degraded readiness allows entry only after room draw",
+      "Missing exterior module: core fallback and fade entry"
+    ],
+    "previousFixtureCoverage": "verification/living-exterior/phase2-materials/ (unchanged gate/bridge source)"
+  },
+  "reviewPage": {
+    "command": "node review/exterior-form/capture.mjs --review-page --review-route=review/exterior-correction/ --review-images=7 --out=correction-review",
+    "exitCode": 0,
+    "loadedImages": 7,
+    "controls": [
+      "concept",
+      "before",
+      "material-only",
+      "return to concept"
+    ],
+    "consoleErrors": 0,
+    "artifacts": "verification/exterior-form/correction-review/"
+  },
+  "preview": {
+    "url": "http://127.0.0.1:8774/review/exterior-correction/",
+    "workerMatchesWorktree": true
+  },
+  "remaining": [
+    "Less inner light and fine transparent structure than Concept B; possible excessive smoothness/opacity",
+    "Existing porch join and window/roof facets preserved",
+    "Undisturbed real-device performance measurement before release"
+  ],
+  "boundary": "Stop for approval. No merge, push, deploy or publication."
+}

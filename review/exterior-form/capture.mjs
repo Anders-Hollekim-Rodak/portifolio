@@ -129,6 +129,16 @@ try {
    await evaluate("document.querySelector('[data-mode=before]').click()");
    await until("document.getElementById('leftImage').complete && document.getElementById('leftImage').naturalWidth>0");
    await shot('review-before');
+   // Correction reviews also isolate the material change at the old camera.
+   if(await evaluate("!!document.querySelector('[data-mode=material]')")){
+    await evaluate("document.querySelector('[data-mode=material]').click()");
+    await until("Array.from(document.images).every(i=>i.complete&&i.naturalWidth>0)");
+    assert.ok(await evaluate("document.getElementById('rightImage').getAttribute('src')==='evidence/material-only.png' && document.querySelector('[data-mode=material]').getAttribute('aria-pressed')==='true'"));
+    await shot('review-material-only');
+    await evaluate("document.querySelector('[data-mode=concept]').click()");
+    await until("Array.from(document.images).every(i=>i.complete&&i.naturalWidth>0)");
+    assert.ok(await evaluate("document.getElementById('leftFrame').classList.contains('reference') && document.getElementById('rightImage').getAttribute('src')==='evidence/corrected.png'"));
+   }
    assert.equal(errors.length,0,JSON.stringify(errors));console.log('PASS review images and comparison controls');
   }else{
   await cdp('Page.addScriptToEvaluateOnNewDocument',{source:"const OriginalWorker=window.Worker;window.Worker=class extends OriginalWorker{constructor(url,options){super(url,options);if(String(url).includes('loading-living-worker.js'))window.__reviewWorker=this;}};"});

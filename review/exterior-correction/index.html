@@ -1,0 +1,55 @@
+﻿<!doctype html>
+<html lang="nb">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Liquid Sanctuary — glass og sentrert inngang</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#080b10;color:#c8d3d6;font:16px/1.6 system-ui,sans-serif}main{max-width:1480px;padding:32px;margin:auto}h1{font:400 clamp(28px,3vw,44px)/1.2 Georgia,serif;color:#e5e7dd}h2{font:400 24px Georgia,serif}a{color:#9edbd3}p{max-width:980px}.eyebrow{color:#8bb8b5;letter-spacing:.16em;font-size:12px;text-transform:uppercase}nav{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:24px 0}button{font:inherit;font-size:14px;padding:10px 16px;background:#102226;color:#c9e5e1;border:1px solid #355b60;border-radius:5px;cursor:pointer}button[aria-pressed=true]{background:#2c5355;color:#fff}a:focus-visible,button:focus-visible{outline:2px solid #dbbd85;outline-offset:4px}.pair,.details{display:grid;grid-template-columns:1fr 1fr;gap:18px}figure{margin:0;border:1px solid #23333c;background:#06070b}figure>img{width:100%;display:block}figcaption{padding:12px 16px;font-size:14px;color:#adbcc7}.square{aspect-ratio:1;overflow:hidden}.square img{display:block;width:100%;height:100%;object-fit:cover}.square.reference img{width:150%;max-width:none;object-fit:fill}.notes{padding:16px 20px;border-left:2px solid #3c7b76;background:#0d171d;margin:24px 0}.details{margin:24px 0}.minor{font-size:14px;color:#9eadb9}.mobile{max-width:300px}details{margin:20px 0}summary{cursor:pointer;padding:12px 0}footer{border-top:1px solid #26343d;padding:24px 0;margin-top:36px;color:#9eadb9}code{font-size:13px;overflow-wrap:anywhere}@media(max-width:780px){main{padding:18px}.pair,.details{grid-template-columns:1fr}}
+</style>
+<main>
+<p class="eyebrow">Concept B / Liquid Sanctuary · Korreksjon etter fase 2</p>
+<h1>Roligere glass. En mer frontal inngang.</h1>
+<p>Marmorerte overflateflekker er dempet, lyset ligger dypere i glasset og refleksjonene er roligere. Visningen er dreid 10° mot fronten, og dørsømmen ligger midt i bildet. Den godkjente geometrien er beholdt. Alle bilder av implementeringen er faktiske nettleseropptak.</p>
+<nav aria-label="Velg sammenligning">
+<button data-mode="concept" aria-pressed="true">Konsept B / nå</button>
+<button data-mode="before" aria-pressed="false">Før / nå</button>
+<button data-mode="material" aria-pressed="false">Kun materialet · samme vinkel</button>
+<a href="../../dev/living-exterior-preview.html">Åpne levende forhåndsvisning</a>
+<a href="../../">Prøv hele inngangen</a>
+</nav>
+<div class="pair">
+<figure><div id="leftFrame" class="square reference"><img id="leftImage" src="../exterior-visual-upgrade/concept-b.png" alt="Originalt godkjent konsept B, hovedmotiv"></div><figcaption id="leftCaption">Designfasit — originalt konsept B, utsnitt av hovedmotivet</figcaption></figure>
+<figure><div class="square"><img id="rightImage" src="evidence/corrected.png" alt="Korrigert eksteriør med roligere mørkt glass og sentrert inngang"></div><figcaption id="rightCaption">Nå — nytt glass og 10° mer frontal visning</figcaption></figure>
+</div>
+<p class="minor" id="comparisonNote" aria-live="polite">Konseptet er kunst; høyre detaljkolonne er bare beskåret i denne sammenligningen. Nettleserbildet er 1024 × 1024 ved samme animasjonstid som før (8,05 s).</p>
+<div class="notes">
+<p><strong>Se spesielt på:</strong> om kuppelen nå oppleves som mørkt, dypt glass fremfor stein; om den svake indre gløden er tydelig nok; og om den mer frontale døren gir en bedre inngang til bygningen.</p>
+<p><strong>Fortsatt et stykke fra konseptet:</strong> konseptet har rikere indre lys, finere transparente slør og mer sammensatte refleksjoner. Denne versjonen er roligere og mørkere, særlig i tårnet, og kan fortsatt oppleves for enkel. Den eksisterende skjøten ved inngangen og fasetter i vinduslistene er synlige. Formen er ikke ombygd i denne korreksjonen.</p>
+</div>
+<h2>Vinkel og inngang</h2>
+<p>Visningsvinkelen er dreid nøyaktig 10° rundt bygningen. Dette gir ønsket relative rotasjon i bildet, samtidig som døren og rommet beholder felles koordinater. Ved stillbildet er døren nå på 50 % av bildebredden; før var den på 43,77 % i kvadratvisningen. Vinkelen mot selve dørplanet er redusert fra 13,42° til 2,14°. Tårnet blir fortsatt stående tydelig på høyre side.</p>
+<h2>Nærbilder av det korrigerte materialet</h2>
+<div class="details">
+<figure><img src="evidence/entrance.png" alt="Nærbilde av inngangen med mørkt glass og fiolette gardiner"><figcaption>Inngang — roligere glass rundt uendret åpning og gardiner. <a href="../exterior-materials/evidence/entrance.png">Før korreksjonen</a></figcaption></figure>
+<figure><img src="evidence/tower.png" alt="Nærbilde av tårnet med mørke refleksjoner og varme vinduer"><figcaption>Tårn — mindre flekkete overflate, men også mer dempet indre liv. <a href="../exterior-materials/evidence/tower.png">Før korreksjonen</a></figcaption></figure>
+</div>
+<details><summary>Annen vinkel og smal skjerm</summary><div class="details"><figure><img src="evidence/threequarter.png" alt="Eksteriøret sett skrått fra siden"><figcaption>Diagnostisk trekvartvisning — uendret kameravinkel for dette nærbildet</figcaption></figure><figure class="mobile"><img src="evidence/mobile.png" alt="Ny frontvisning på 390 × 844 piksler"><figcaption>390 × 844, DPR 1 i desktop-nettleser. Ikke en fysisk mobiltest.</figcaption></figure></div></details>
+<details><summary>Gjennom samme dør inn i rommet</summary><figure><img src="evidence/entry.png" alt="Gardiner som åpner mot det eksisterende rommet"><figcaption>Faktisk integrert inngang. Døråpning, rom og klarsignal for innlasting er bevart.</figcaption></figure></details>
+<p><a href="../exterior-visual-upgrade/concept-b.png">Hele originalkonseptet</a> · <a href="../../EXTERIOR_CORRECTION_STATUS.md">Overlevering og ytelsesmålinger</a> · <a href="verification-summary.json">Kontrollresultater</a> · <a href="../exterior-materials/">Arkivert fase 2</a></p>
+<footer>Kun lokal gjennomgang på <code>feature/exterior-b-form-camera</code>, med <code>4304dd7</code> som utgangspunkt. Ingen merge, push eller publisering. Avventer godkjenning av denne korreksjonen.</footer>
+</main>
+<script>
+const left=document.getElementById('leftImage'),right=document.getElementById('rightImage'),frame=document.getElementById('leftFrame');
+const modes={
+ concept:{left:'../exterior-visual-upgrade/concept-b.png',right:'evidence/corrected.png',leftText:'Designfasit — originalt konsept B, utsnitt av hovedmotivet',rightText:'Nå — nytt glass og 10° mer frontal visning',note:'Konseptet er kunst; høyre detaljkolonne er bare beskåret i denne sammenligningen. Nettleserbildet er 1024 × 1024 ved samme animasjonstid som før (8,05 s).'},
+ before:{left:'../exterior-materials/evidence/phase2.png',right:'evidence/corrected.png',leftText:'Før — godkjent fase 2 ved 4304dd7',rightText:'Nå — nytt glass og 10° mer frontal visning',note:'Her endres både materialet og visningsvinkelen. Geometri, størrelse på bildet og animasjonstid er de samme. Velg «Kun materialet» for en sammenligning med identisk kamera.'},
+ material:{left:'../exterior-materials/evidence/phase2.png',right:'evidence/material-only.png',leftText:'Før — tidligere materiale og tidligere kamera',rightText:'Nytt materiale — med det samme tidligere kameraet',note:'Kun materialforskjellen: identisk kamera, 1024 × 1024, DPR 1 og tid 8,05 s. Høyre bilde bruker en diagnostisk kameraoverstyring; den levende forhåndsvisningen bruker den nye frontvinkelen.'}
+};
+for(const button of document.querySelectorAll('button[data-mode]'))button.addEventListener('click',()=>{
+ const mode=button.dataset.mode,m=modes[mode];left.src=m.left;right.src=m.right;left.alt=m.leftText;right.alt=m.rightText;
+ frame.classList.toggle('reference',mode==='concept');
+ document.getElementById('leftCaption').textContent=m.leftText;document.getElementById('rightCaption').textContent=m.rightText;document.getElementById('comparisonNote').textContent=m.note;
+ for(const b of document.querySelectorAll('button[data-mode]'))b.setAttribute('aria-pressed',String(b===button));
+});
+</script>
+</html>

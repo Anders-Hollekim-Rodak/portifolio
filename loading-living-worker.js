@@ -510,17 +510,18 @@ vec4 current(vec3 q){
  vec3 w=q*5.8+vec3(broad*2.4,broad*1.8,broad*-1.5);
  float detail=volumeNoise(w+3.2),fine=volumeNoise(w*2.4-1.8);
  float mist=broad*.44+detail*.36+fine*.20;
- float cloud=smoothstep(.38,.66,mist);
+ // Low-contrast density: the shell transmits light instead of drawing stone-like patches.
+ float cloud=.16+.28*mist;
  float vein=pow(1.-abs(detail*.9+fine*1.1-1.),16.)*smoothstep(.32,.78,broad);
  vec3 hue=mix(vec3(.035,.43,.35),vec3(.065,.13,.34),smoothstep(.2,.85,q.x*.22+fine*.6)*.48);
- vec3 glow=hue*(vein*.09+cloud*cloud*cloud*.10);
+ vec3 glow=hue*(vein*.008+cloud*.007);
  return vec4(glow,cloud);
 }
 vec3 liquidGlass(vec3 q,vec3 n,vec3 V){
  float ndv=max(0.,dot(n,V)),fres=pow(1.-ndv,4.);
  // Shading only: the approved mesh and silhouette never move here.
  vec3 wave=vec3(sin(O.y*19.+sin(O.x*6.+O.z*4.)+time*.18),sin(O.x*17.-O.z*11.+time*.14),sin(O.z*16.+sin(O.y*7.)-time*.16));
- vec3 n2=normalize(n+(wave-n*dot(wave,n))*.007);
+ vec3 n2=normalize(n+(wave-n*dot(wave,n))*.003);
  vec3 rd=refract(-V,n2,.76);
  // Four fixed optical strata: bounded cost, no ray/surface search. As in the
  // real orb, the front mist absorbs and the centre emits into the layers.
@@ -532,17 +533,17 @@ vec3 liquidGlass(vec3 q,vec3 n,vec3 V){
   vec4 mist=current(at);
   vec3 heart=at-vec3(.18,.26,-.12);
   float glow=exp(-dot(heart*vec3(1.,1.15,.85),heart*vec3(1.,1.15,.85))*3.2);
-  vec3 light=mist.rgb+vec3(.24,1.35,1.16)*glow*pow(mist.a,4.)*(.96+.04*sin(time*.51));
+  // Quiet refracted currents in the depth, not bright mottling on the skin.
+  float pulse=.98+.02*sin(time*.51);
+  vec3 light=mist.rgb*(.3+glow*5.)+vec3(.028,.18,.18)*glow*(.12+mist.a*.5)*pulse;
+  vec2 h=heart.xy*vec2(1.,.88);float angle=atan(h.y,h.x+1e-5),radius=length(h);
+  float curl=exp(-pow((radius-(.34+.085*sin(angle*2.+heart.z*3.+time*.026)))/.052,2.));
+  curl*=exp(-pow((heart.z+.1)/.40,2.))*smoothstep(-.18,.38,-h.y+h.x*.35);
+  light+=vec3(.030,.24,.23)*curl*.65*pulse;
   inner+=T*light*dt;
-  T*=exp(-(.30+sqrt(mist.a)*3.6)*dt);
+  T*=exp(-(.12+mist.a*.85)*dt);
  }
  inner*=.65+.35*smoothstep(.06,.65,ndv);
- // A sparse near-skin stratum stays crisp against the mist behind it.
- float flow=volumeNoise(q*2.8+vec3(0.,time*.008,4.));
- vec3 silk=q*vec3(14.,7.,12.)+flow*5.;
- float fine=volumeNoise(silk)+volumeNoise(silk*2.1+2.7)*.3;
- float strand=pow(smoothstep(.38,.72,fine/1.3),3.)*smoothstep(.32,.78,flow);
- inner+=vec3(.003,.018,.017)*strand*(.35+.65*ndv);
  vec3 R=reflect(-V,n2),L=normalize(vec3(-.9,3.2,-.15));
  float key=max(0.,dot(R,L));
  float highlight=pow(key,180.)*2.15+pow(key,38.)*.11;
@@ -555,7 +556,7 @@ vec3 liquidGlass(vec3 q,vec3 n,vec3 V){
  float streak=exp(-pow((R.x+.48)/.032,2.))*smoothstep(.05,.8,R.y);
  color+=vec3(.21,.32,.29)*streak*.065;
  float windowReflection=exp(-pow((R.x+.57)/.065,2.))*smoothstep(.25,.8,R.y);
- color+=vec3(.13,.22,.20)*windowReflection*.35;
+ color+=vec3(.13,.22,.20)*windowReflection*.18;
  color+=vec3(.13,.062,.012)*max(0.,dot(n,normalize(${v3(CORE_AT)}-P)))*.025;
  // A wide distant source catches the shoulders and sculpted folds.
  float sweep=pow(max(0.,dot(R,normalize(vec3(-1.8,.5,1.)))),90.);
@@ -864,8 +865,14 @@ function walked(u,a=.2,b=.3){
 const landing=()=>({x:0,y:entry.y,z:DOOR_Z+LANDING,yaw:0,tilt:entry.tilt,lens:.5});
 function pose(){
  const rhythm=reduced?0:Math.pow(.5-.5*Math.cos(time*.78),2);
- // Concept-B reference framing. Keep the inherited idle drift and flight.
+ // Present the entire exterior 10 degrees more frontally. Inverse camera
+ // yaw is the rigid presentation rotation; door/room world coordinates stay shared.
  const far=[2.37+Math.sin(time*.21)*.10*rhythm,1.73+Math.sin(time*.35)*.055*rhythm,11.25],look=[-.02,.12,.03];
+ const turn=10*Math.PI/180,c=Math.cos(turn),s=Math.sin(turn);
+ [far[0],far[2]]=[far[0]*c-far[2]*s,far[0]*s+far[2]*c];
+ [look[0],look[2]]=[look[0]*c-look[2]*s,look[0]*s+look[2]*c];
+ // Centre the real door seam horizontally, without moving any geometry.
+ look[0]=far[0]*(look[2]-DOOR.plane)/(far[2]-DOOR.plane);
  const aspect=screenW/screenH,halfWidth=2.14+.26*(1-smooth((aspect-.65)/.35));
  const fov=Math.max(.378,2*Math.atan(halfWidth/(aspect*11.6)));
  if(!flight)return{eye:far,target:look,fov,lens:.5,curtain:0,reveal:0,fade:0,sky:0,view:null};
