@@ -460,8 +460,8 @@ vec3 tonemap(vec3 c){return pow(1.-exp(-max(c,0.)*1.1),vec3(.4545));}
 // The night, as the glass and the bronze reflect it: violet overhead, a teal
 // glow low round the horizon (the gate's void).
 vec3 night(vec3 R){
- vec3 c=mix(vec3(.008,.007,.018),vec3(.028,.018,.055),smoothstep(-.2,.9,R.y));
- return c+vec3(.010,.040,.040)*exp(-R.y*R.y*12.);
+ vec3 c=mix(vec3(.0015,.002,.005),vec3(.008,.005,.019),smoothstep(-.2,.9,R.y));
+ return c+vec3(.002,.014,.017)*exp(-R.y*R.y*12.);
 }
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 `;
@@ -492,26 +492,78 @@ const FS_OPEN=` float entrance=ease((age-4.85)/.65);
  vec3 n=nn;
  float ndv=max(.0,dot(n,V)),fres=pow(1.-ndv,4.);
 `;
-const FRAGMENT=`${FS_HEAD}
+// Shared world-space liquid mineral. Fixed optical strata and a noise atlas
+// give depth without surface ray tracing, extra render targets or transparency.
+const LIQUID=`
 uniform sampler2D noiseMap;
 float volumeNoise(vec3 p){
  vec3 i=floor(p),u=fract(p);u=u*u*(3.-2.*u);
  vec2 uv=(i.xy+vec2(37.,17.)*i.z+u.xy+.5)/256.;
  vec2 n=texture2D(noiseMap,uv).rg;return mix(n.x,n.y,u.z);
 }
-vec3 current(vec3 q,float layer){
- float radius=length(q.xy-vec2(-.2,.35)),spin=time*(.055-layer*.014)+3.8/(.6+radius);
- float c=cos(spin),s=sin(spin);q.xy=mat2(c,-s,s,c)*(q.xy-vec2(-.2,.35))+vec2(-.2,.35);
- vec3 drift=vec3(0.,time*.025,-time*.018);
- float warp=volumeNoise(q*1.8+drift+layer*2.7),bend=volumeNoise(q*3.1+3.6-drift);
- vec3 w=q*7.2+vec3(warp*4.5,bend*3.1,warp-bend);
- float mist=volumeNoise(w)*.58+volumeNoise(w*2.03+4.7)*.29+volumeNoise(w*4.17-2.1)*.13;
- float gate=smoothstep(.26,.74,warp),vein=pow(1.-abs(mist*2.-1.),15.)*gate;
- float cloud=smoothstep(.42,.76,mist)*gate;
- vec3 hue=mix(vec3(.021,.29,.235),vec3(.13,.044,.24),smoothstep(.25,.85,bend)*.28);
- return hue*(vein*.43+cloud*.20)+vec3(.00025,.0012,.0014);
+vec4 current(vec3 q){
+ float radius=length(q.xy-vec2(-.12,.25));
+ float spin=time*.028+1.8/(.8+radius);
+ float c=cos(spin),s=sin(spin);q.xy=mat2(c,-s,s,c)*(q.xy-vec2(-.12,.25))+vec2(-.12,.25);
+ vec3 drift=vec3(time*.008,-time*.012,time*.007);
+ float broad=volumeNoise(q*2.2+drift);
+ vec3 w=q*5.8+vec3(broad*2.4,broad*1.8,broad*-1.5);
+ float detail=volumeNoise(w+3.2),fine=volumeNoise(w*2.4-1.8);
+ float mist=broad*.44+detail*.36+fine*.20;
+ float cloud=smoothstep(.38,.66,mist);
+ float vein=pow(1.-abs(detail*.9+fine*1.1-1.),16.)*smoothstep(.32,.78,broad);
+ vec3 hue=mix(vec3(.035,.43,.35),vec3(.065,.13,.34),smoothstep(.2,.85,q.x*.22+fine*.6)*.48);
+ vec3 glow=hue*(vein*.09+cloud*cloud*cloud*.10);
+ return vec4(glow,cloud);
 }
-
+vec3 liquidGlass(vec3 q,vec3 n,vec3 V){
+ float ndv=max(0.,dot(n,V)),fres=pow(1.-ndv,4.);
+ // Shading only: the approved mesh and silhouette never move here.
+ vec3 wave=vec3(sin(O.y*19.+sin(O.x*6.+O.z*4.)+time*.18),sin(O.x*17.-O.z*11.+time*.14),sin(O.z*16.+sin(O.y*7.)-time*.16));
+ vec3 n2=normalize(n+(wave-n*dot(wave,n))*.007);
+ vec3 rd=refract(-V,n2,.76);
+ // Four fixed optical strata: bounded cost, no ray/surface search. As in the
+ // real orb, the front mist absorbs and the centre emits into the layers.
+ float span=mix(1.85,.62,smoothstep(1.05,1.43,dot(O.xz,normalize(${v3(TOWER)}.xz))));
+ if(part>3.5&&part<4.5)span=.28;
+ float dt=span/4.,T=1.;vec3 inner=vec3(0.);
+ for(int i=0;i<4;i++){
+  vec3 at=q+rd*(float(i)+.5)*dt;
+  vec4 mist=current(at);
+  vec3 heart=at-vec3(.18,.26,-.12);
+  float glow=exp(-dot(heart*vec3(1.,1.15,.85),heart*vec3(1.,1.15,.85))*3.2);
+  vec3 light=mist.rgb+vec3(.24,1.35,1.16)*glow*pow(mist.a,4.)*(.96+.04*sin(time*.51));
+  inner+=T*light*dt;
+  T*=exp(-(.30+sqrt(mist.a)*3.6)*dt);
+ }
+ inner*=.65+.35*smoothstep(.06,.65,ndv);
+ // A sparse near-skin stratum stays crisp against the mist behind it.
+ float flow=volumeNoise(q*2.8+vec3(0.,time*.008,4.));
+ vec3 silk=q*vec3(14.,7.,12.)+flow*5.;
+ float fine=volumeNoise(silk)+volumeNoise(silk*2.1+2.7)*.3;
+ float strand=pow(smoothstep(.38,.72,fine/1.3),3.)*smoothstep(.32,.78,flow);
+ inner+=vec3(.003,.018,.017)*strand*(.35+.65*ndv);
+ vec3 R=reflect(-V,n2),L=normalize(vec3(-.9,3.2,-.15));
+ float key=max(0.,dot(R,L));
+ float highlight=pow(key,180.)*2.15+pow(key,38.)*.11;
+ vec3 color=inner*(1.-fres*.88)+vec3(.0003,.001,.0015);
+ color+=vec3(.78,.85,.78)*highlight;
+ // Violet grazing light comes from the stair side; aqua from the opposite edge.
+ vec3 rim=mix(vec3(.008,.10,.088),vec3(.086,.026,.15),smoothstep(-.35,.65,n.x));
+ color+=rim*fres*.48;
+ color+=night(R)*(.12+fres*1.5);
+ float streak=exp(-pow((R.x+.48)/.032,2.))*smoothstep(.05,.8,R.y);
+ color+=vec3(.21,.32,.29)*streak*.065;
+ float windowReflection=exp(-pow((R.x+.57)/.065,2.))*smoothstep(.25,.8,R.y);
+ color+=vec3(.13,.22,.20)*windowReflection*.35;
+ color+=vec3(.13,.062,.012)*max(0.,dot(n,normalize(${v3(CORE_AT)}-P)))*.025;
+ // A wide distant source catches the shoulders and sculpted folds.
+ float sweep=pow(max(0.,dot(R,normalize(vec3(-1.8,.5,1.)))),90.);
+ color+=vec3(.06,.10,.09)*sweep;
+ return color;
+}
+`;
+const FRAGMENT=`${FS_HEAD}${LIQUID}
 // A pointed opening's half-width at height y (arch(), metres; w: its
 // half-width, sill, shoulder and peak), and the opening (negative inside).
 float archHalf(float y,vec4 w){
@@ -545,11 +597,11 @@ vec3 pane(vec2 p,vec2 slope,vec4 w,float great,float aa){
   c+=vec3(.05,.12,.09)*smoothstep(.55,1.,k)*.6;
   d=tracery(p);
  }else{
-  c=mix(vec3(.50,.25,.065),vec3(.13,.06,.20),smoothstep(.25,1.,k));
+  c=mix(vec3(1.3,.65,.29),vec3(.20,.08,.36),smoothstep(.24,.94,k));
   vec2 hot=(p+slope*2.4-vec2(0.,w.y+(w.w-w.y)*.28))/vec2(w.x*2.2,(w.w-w.y)*.7);
-  c*=(.5+.75*exp(-dot(hot,hot)))*flicker;
+  c*=(.30+1.65*exp(-dot(hot,hot)*2.4))*flicker;
   vec2 s=vec2(p.x/.11+p.y/.19,-p.x/.11+p.y/.19),g=(.5-abs(fract(s)-.5))/10.5;
-  d=min(g.x,g.y)-.006;
+  d=min(g.x,g.y)-.0025;
   float h=hash(floor(s));
   c*=vec3(1.,.88+.24*h,.95-.25*h)*(.85+.3*hash(floor(s)+7.));
  }
@@ -579,12 +631,12 @@ ${FS_OPEN}
   float u=abs(O.x)/${f(DOOR.a)},v=sat((O.y-${f(DOOR.sill)})/${f(DOOR.peak-DOOR.sill)});
   float pleat=.5+.5*sin(u*17.+v*1.1),rim=pow(1.-ndv,2.);
   float thread=.5+.5*sin(u*380.);
-  vec3 silk=mix(vec3(.004,.005,.012),vec3(.016,.023,.025),pleat*.65);
-  silk+=vec3(.16,.12,.065)*pow(pleat,10.)*.18+vec3(.055,.09,.10)*rim*.12;
+  vec3 silk=mix(vec3(.005,.004,.011),vec3(.019,.012,.029),pleat*.65);
+  silk+=vec3(.19,.15,.20)*pow(pleat,10.)*.14+vec3(.07,.05,.12)*rim*.22;
   silk*=.96+.04*thread;
   float hem=1.-smoothstep(.0,.014,min(v,1.-v));
-  silk+=vec3(.26,.24,.15)*hem*.24;
-  silk+=vec3(.34,.14,.027)*exp(-u*120.)*(1.-curtains);
+  silk+=vec3(.20,.15,.10)*hem*.13;
+  silk+=vec3(.60,.26,.065)*exp(-u*120.)*(1.-curtains);
   float a=.98;
   gl_FragColor=vec4(tonemap(silk)*a,a);return;
  }
@@ -605,45 +657,15 @@ ${FS_OPEN}
  }
  bool shell=part>9.5;
  bool towerSkin=(part>.5&&part<1.5)||(shell&&dot(O.xz,normalize(${v3(TOWER)}.xz))>1.1);
- vec3 q=O;if(shell&&!towerSkin)q.y=(-0.7800)+(O.y-(-0.7800))/0.8454;
- if(towerSkin&&!shell)q=(O-${v3(TOWER)})*vec3(1.6,1.0,1.6);
- if(shell)q=O*vec3(1.,1.18,1.);
+ // Continuous world coordinates unite the porch, folds and tower.
+ vec3 q=O*vec3(1.,1.18,1.);
  // The passage through the porch: dark stone, as the room's own door passage.
  if(part>2.5&&part<3.5){
   float grain=.5+.5*organic(O*14.);
   vec3 stone=vec3(.016,.017,.020)*(.75+.5*grain)+vec3(.05,.045,.034)*pow(1.-ndv,3.)*.5;
   gl_FragColor=vec4(tonemap(stone),1.);return;
  }
- if(part>3.5&&part<4.5)q=O*vec3(1.,2.,1.);
- // The living surface: the glass is never quite still, so what is seen
- // through it and its highlights waver.
- vec3 wave=vec3(sin(O.y*34.+time*.5+sin(O.x*11.+O.z*7.)*1.4),sin(O.x*23.-O.z*19.+time*.3),sin(O.z*29.-time*.45+sin(O.y*13.)*1.2));
- vec3 n2=normalize(n+(wave-n*dot(wave,n))*.012);
- vec3 rd=refract(-V,n2,.76);
- // Refracted material layers, no per-pixel volume march: spread further
- // apart in depth, so the currents part as the eye moves (depth), the near
- // ones brighter.
- vec3 inner=current(q+rd*.12,0.)*.94+current(q+rd*.95,1.)*.48;
-
- float pocket=volumeNoise(q*2.1+vec3(time*.02,3.2,0.));
- inner*=.045+.78*smoothstep(.20,.88,pocket);
- inner+=vec3(.002,.012,.009)*exp(-dot(q-vec3(0.,.35,0.),q-vec3(0.,.35,0.))*3.1);
- // The glass is thick: where it is seen straight on, light gathers in its
- // depth; toward its edges it darkens before the rim catches the sky.
- inner+=vec3(.001,.003,.003)*pow(ndv,1.6);
- inner*=.72+.28*smoothstep(.05,.55,ndv);
- vec3 L=normalize(vec3(-.65,1.,1.)),H=normalize(L+V);
- float highlight=pow(max(dot(n2,H),0.),260.)*.8+pow(max(dot(n2,H),0.),48.)*.055;
- vec3 color=inner*(1.-fres*.82)*.74+vec3(.0005,.0015,.002);
- color+=vec3(.65,.76,.70)*highlight*.74;
- color+=mix(vec3(.008,.082,.065),vec3(.055,.025,.10),smoothstep(-.6,.6,n.x))*fres*.70;
- color+=vec3(.15,.085,.014)*max(0.,dot(n,normalize(${v3(CORE_AT)}-P)))*.025;
- color+=night(reflect(-V,n2))*(.22+fres*2.2);
- vec3 R=reflect(-V,n2);float softbox=pow(max(0.,dot(R,normalize(vec3(-.7,.9,1.1)))),24.);
- float streak=exp(-pow((R.x+.55)/.075,2.))*smoothstep(-.4,.6,R.y);
- color+=vec3(.10,.17,.17)*softbox+vec3(.20,.31,.29)*streak*.22;
- if(part>8.5&&part<9.5)color*=.58;
- if(shell&&!towerSkin)color*=.67+.33*smoothstep((-0.5800),.4,O.y);
+ vec3 color=liquidGlass(q,n,V);
  // The windows, sunk into the glass: the clerestory in the bays round the
  // body and the room's great window behind (none at the tower's bay or the
  // door's), and the tower's lancets up its stair. Light spills round them.
@@ -671,7 +693,8 @@ ${TOWER_WINDOWS.map(t=>`  {float d=dir-${f(t.at)};d-=${f(TAU)}*floor((d+${f(Math
  }
  if(w.w>0.)win=niche(face,-V,wall,w,deep,great,aa,edge);
  color=mix(color,win.rgb,win.a);
- color+=vec3(.34,.16,.04)*exp(-max(edge,0.)*7.)*.06*(1.-win.a);
+ // Fade before the finite niche lookup boundary; avoids rectangular light patches.
+ color+=vec3(.34,.16,.06)*exp(-max(edge,0.)*7.)*.10*(1.-win.a)*(1.-smoothstep(.035,.14,max(edge,0.)));
  // Golden capillary at the active growth front, gone when settled.
  float front=age<2.5?1.50-(age-.65)/1.85*1.12:.38-(age-2.1)/1.9*1.66;
  front=${f(FLOOR)}+(front-${f(FLOOR)})*${f(K)};
@@ -681,7 +704,7 @@ ${TOWER_WINDOWS.map(t=>`  {float d=dir-${f(t.at)};d-=${f(TAU)}*floor((d+${f(Math
 }
 `;
 // The fittings: bronze (mat 1) and polished mineral (mat 2).
-const FITTINGS=`${FS_HEAD}
+const FITTINGS=`${FS_HEAD}${LIQUID}
 // The room's bronze (room-scene.js architecturalMetal: #827354, half metal),
 // worn and greening in places: the key's highlight and the night in it, and
 // the glass's light on the side that faces the glass (inward).
@@ -689,9 +712,9 @@ vec3 bronze(vec3 n,vec3 V,vec3 inward){
  vec3 L=normalize(vec3(-.65,1.,1.)),R=reflect(-V,n);
  // (Green runs down it in streaks.)
  float verd=smoothstep(.6,.95,.5+.5*organic(O*vec3(40.,7.,40.)))*.35;
- vec3 base=mix(vec3(.36,.25,.11),vec3(.12,.23,.18),verd);
+ vec3 base=mix(vec3(.34,.18,.082),vec3(.12,.23,.18),verd*.3);
  float rl=max(dot(R,L),0.);
- vec3 c=base*(.03+.26*max(dot(n,L),0.))+base*pow(rl,22.)*1.3+vec3(1.,.86,.62)*pow(rl,160.)*.4;
+ vec3 c=base*(.025+.17*max(dot(n,L),0.))+base*pow(rl,22.)*1.3+vec3(1.,.86,.62)*pow(rl,160.)*.4;
  c+=night(R)*base*2.5;
  c+=base*vec3(.10,.55,.45)*.35*max(0.,dot(n,inward));
  vec3 g=${v3(CORE_AT)}-P;
@@ -717,12 +740,15 @@ ${FS_OPEN}
   gl_FragColor=vec4(tonemap(bronze(n,V,inward)),1.);return;
  }
  if(look>1.5){
-  if(part<1.5){vec3 R=reflect(-V,n),L=normalize(vec3(-.65,1.,1.));vec3 c=vec3(.004,.012,.014)*(1.+.25*organic(O*30.))+night(R)*(.35+fres*2.);c+=vec3(.13,.22,.20)*pow(max(dot(R,L),0.),60.);gl_FragColor=vec4(tonemap(c),1.);return;}
+  if(part<1.5){vec3 c=liquidGlass(O*vec3(1.,1.18,1.),n,V)*.55;gl_FragColor=vec4(tonemap(c),1.);return;}
   if(part>3.5&&part<4.5){
    float edge=terrace(O.xz),lip=exp(-pow((edge-.013)/.008,2.));vec3 R=reflect(-V,n),L=normalize(vec3(-.65,1.,1.));
-   float grain=.5+.5*organic(O*22.),polish=pow(max(dot(R,L),0.),70.);vec3 c=vec3(.009,.013,.015)*(.7+.3*grain)+night(R)*(.15+fres*.8);
-   c+=vec3(.016,.06,.053)*(1.-smoothstep((-0.8900),(-0.7900),O.y))+vec3(.14,.19,.17)*polish*.35;
-   c+=vec3(.004,.009,.008)*pow(1.-abs(organic(O*vec3(5.,12.,8.)+2.7)),22.)*.18;
+   vec3 c=liquidGlass(O*vec3(1.,1.18,1.),n,V)*.65;
+   // Light inside the landing and elongated reflections from the entrance.
+   vec4 veins=current(O*vec3(1.6,.7,1.2)+vec3(0.,.1,0.));
+   c+=veins.rgb*.32+vec3(.003,.016,.017)*(1.-smoothstep(-.89,-.79,O.y));
+   float reflection=exp(-pow(O.x/.065,2.))*exp(-max(t.y,0.)*.45);
+   c+=vec3(.16,.067,.018)*reflection*(.55+.45*curtains);
    c=mix(c,bronze(n,V,vec3(0.,1.,0.)),lip);c+=vec3(.05,.021,.004)*exp(-dot(t,t)/2.3)*(.25+.75*curtains);gl_FragColor=vec4(tonemap(c),1.);return;
   }
 

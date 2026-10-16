@@ -1,0 +1,47 @@
+﻿<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Liquid Sanctuary — Phase 2 material review</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#080b10;color:#c8d3d6;font:16px/1.6 system-ui,sans-serif}main{max-width:1480px;padding:32px;margin:auto}h1{font:400 clamp(28px,3vw,44px)/1.2 Georgia,serif;color:#e5e7dd}h2{font:400 24px Georgia,serif}a{color:#9edbd3}p{max-width:960px}.eyebrow{color:#8bb8b5;letter-spacing:.16em;font-size:12px;text-transform:uppercase}nav{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:24px 0}button{font:inherit;font-size:14px;padding:10px 16px;background:#102226;color:#c9e5e1;border:1px solid #355b60;border-radius:5px;cursor:pointer}button[aria-pressed=true]{background:#2c5355;color:#fff}a:focus-visible,button:focus-visible{outline:2px solid #dbbd85;outline-offset:4px}.pair,.details{display:grid;grid-template-columns:1fr 1fr;gap:18px}figure{margin:0;border:1px solid #23333c;background:#06070b}figure>img{width:100%;display:block}figcaption{padding:12px 16px;font-size:14px;color:#adbcc7}.square{aspect-ratio:1;overflow:hidden}.square img{display:block;width:100%;height:100%;object-fit:cover}.square.reference img{width:150%;max-width:none;object-fit:fill}.notes{padding:16px 20px;border-left:2px solid #3c7b76;background:#0d171d;margin:24px 0}.details{margin:24px 0}.minor{font-size:14px;color:#9eadb9}.mobile{max-width:300px}details{margin:20px 0}summary{cursor:pointer;padding:12px 0}footer{border-top:1px solid #26343d;padding:24px 0;margin-top:36px;color:#9eadb9}code{font-size:13px;overflow-wrap:anywhere}@media(max-width:780px){main{padding:18px}.pair,.details{grid-template-columns:1fr}}
+</style>
+<main>
+<p class="eyebrow">Concept B / Liquid Sanctuary</p>
+<h1>Phase 2 — glass depth and inner light</h1>
+<p>The approved Phase 1 geometry and camera are unchanged. This pass concentrates on deeper teal glass, blue-violet reflections, warm windows and a continuous material across the entrance and tower. All implementation images are actual browser captures.</p>
+<nav aria-label="Compare materials">
+<button data-mode="concept" aria-pressed="true">Concept / Phase 2</button>
+<button data-mode="before" aria-pressed="false">Phase 1 / Phase 2</button>
+<a href="../../dev/living-exterior-preview.html">Open live exterior</a>
+<a href="../../">Try the complete entrance</a>
+</nav>
+<div class="pair">
+<figure><div id="leftFrame" class="square reference"><img id="leftImage" src="../exterior-visual-upgrade/concept-b.png" alt="Original approved Concept B, main view"></div><figcaption id="leftCaption">Design reference — original Concept B, main-view crop</figcaption></figure>
+<figure><div class="square"><img src="evidence/phase2.png" alt="Phase 2 actual 3D render with illuminated teal glass"></div><figcaption>Phase 2 — actual render, 1024 × 1024, time 8.05 s</figcaption></figure>
+</div>
+<div class="notes">
+<p><strong>Review the material, not a new shape:</strong> the depth of the dome, the balance of dark glass and inner light, the violet edge, and how the entrance and tower belong to the same material.</p>
+<p><strong>Still short of the reference:</strong> the clouds and reflections are softer and less intricate. The porch join remains visible in close-up, and the existing spire/roof edge and window mouldings still have geometric facets. These have not been remodelled in this material pass.</p>
+</div>
+<p class="minor">Both comparison renders use the same approved camera, dimensions and animation time. The concept is artwork; its right-hand detail column is cropped only in the comparison above. <a href="../exterior-visual-upgrade/concept-b.png">Open the full original reference</a>.</p>
+<h2>Material details</h2>
+<div class="details">
+<figure><img src="evidence/entrance.png" alt="Actual entrance close-up with violet curtains, bronze reveal and teal glass"><figcaption>Entrance — unified glass, darker violet cloth and a warm central seam. <a href="../exterior-form/evidence/entrance.png">Phase 1 close-up</a></figcaption></figure>
+<figure><img src="evidence/tower.png" alt="Tower showing dark glass, violet rim and warm recessed windows"><figcaption>Tower — subtle internal material, warm-violet panes and softened light spill</figcaption></figure>
+</div>
+<details><summary>Another angle and narrow-screen framing</summary><div class="details"><figure><img src="evidence/threequarter.png" alt="Phase 2 exterior viewed from three quarters"><figcaption>Three-quarter diagnostic view</figcaption></figure><figure class="mobile"><img src="evidence/mobile.png" alt="Exterior at 390 by 844 CSS pixels"><figcaption>390 × 844, DPR 1 desktop emulation</figcaption></figure></div></details>
+<details><summary>Through the same door into the existing room</summary><figure><img src="evidence/entry.png" alt="Actual cinematic entrance with curtains opening onto the room"><figcaption>Integrated entrance capture. The room and readiness flow are unchanged.</figcaption></figure></details>
+<p><a href="../../EXTERIOR_MATERIALS_PHASE2.md">Handoff, exact measurements and verification commands</a> · <a href="verification-summary.json">Machine-readable evidence</a> · <a href="../exterior-form/">Archived Phase 1 review</a></p>
+<footer>Isolated branch: <code>feature/exterior-b-form-camera</code> · Phase 2 starts at <code>d156488</code>.<br>Local review only. No merge, push, deployment or publication. Awaiting Phase 2 approval.</footer>
+</main>
+<script>
+const image=document.getElementById('leftImage'),frame=document.getElementById('leftFrame'),caption=document.getElementById('leftCaption');
+for(const button of document.querySelectorAll('button[data-mode]'))button.addEventListener('click',()=>{
+ const concept=button.dataset.mode==='concept';image.src=concept?'../exterior-visual-upgrade/concept-b.png':'../exterior-form/evidence/phase1.png';
+ image.alt=concept?'Original approved Concept B':'Approved Phase 1, identical camera and animation time';frame.classList.toggle('reference',concept);
+ caption.textContent=concept?'Design reference — original Concept B, main-view crop':'Approved Phase 1 — same geometry, camera and time; earlier materials';
+ for(const b of document.querySelectorAll('button[data-mode]'))b.setAttribute('aria-pressed',String(b===button));
+});
+</script>
+</html>

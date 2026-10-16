@@ -121,8 +121,10 @@ try {
 
 
   if(process.argv.includes('--review-page')){
-   await viewport(1600,1250);await cdp('Page.navigate',{url:url+'review/exterior-form/'});
-   await until("document.images.length===5 && Array.from(document.images).every(i=>i.complete&&i.naturalWidth>0)");
+   const route=process.argv.find(a=>a.startsWith('--review-route='))?.slice(15)||'review/exterior-form/';
+   const imageCount=Number(process.argv.find(a=>a.startsWith('--review-images='))?.slice(16)||5);
+   await viewport(1600,1250);await cdp('Page.navigate',{url:url+route});
+   await until(`document.images.length===${imageCount} && Array.from(document.images).every(i=>i.complete&&i.naturalWidth>0)`);
    await shot('review-concept');
    await evaluate("document.querySelector('[data-mode=before]').click()");
    await until("document.getElementById('leftImage').complete && document.getElementById('leftImage').naturalWidth>0");
