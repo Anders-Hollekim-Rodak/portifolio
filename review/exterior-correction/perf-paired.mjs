@@ -13,7 +13,7 @@ await mkdir(output, {recursive: true});
 // Paths the server answers with 404, or holds until released.
 const missing = new Set(), held = new Map();
 let reviewCameraEnabled=false;
-const ref='4304dd7', matchCamera=true;
+const ref=process.argv.find(a=>a.startsWith('--ref='))?.slice(6)||'4304dd7', matchCamera=true;
 const baselineSource=execFileSync('git',['show',ref+':loading-living-worker.js'],{cwd:root});
 const correctedSource=await readFile(resolve(root,'loading-living-worker.js'));
 const hash=b=>createHash('sha256').update(b.toString('utf8').replaceAll('\r\n','\n').trim()).digest('hex');

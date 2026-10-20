@@ -1,0 +1,280 @@
+{
+  "date": "2026-10-20",
+  "baseline": "25543df",
+  "branch": "feature/exterior-b-form-camera",
+  "sourceHash": "678d58b1328e193fb18dee27884e1737892655f77d99a0c9160c35998a120aca",
+  "check": {
+    "status": "PASS",
+    "baseline": "25543df",
+    "sourceHash": "678d58b1328e193fb18dee27884e1737892655f77d99a0c9160c35998a120aca",
+    "unchanged": "Body/tower/door/camera/entry/room; platform y,z,width,topology",
+    "platformTriangles": 9216,
+    "entryCentrelineSupported": true,
+    "views": [
+      {
+        "size": [
+          1024,
+          1024
+        ],
+        "door": [
+          512.0000001543189,
+          786.7235098696026,
+          10.431664991021156
+        ],
+        "tip": [
+          511.9868134570497,
+          912.861677190816,
+          8.737076651987461
+        ],
+        "yawDegrees": 2.14
+      },
+      {
+        "size": [
+          1600,
+          1000
+        ],
+        "door": [
+          800.0000005266998,
+          768.2846776070338,
+          10.431664991021156
+        ],
+        "tip": [
+          799.9871245950576,
+          891.4664816316562,
+          8.737076651987461
+        ],
+        "yawDegrees": 2.14
+      },
+      {
+        "size": [
+          390,
+          844
+        ],
+        "door": [
+          194.99999983791253,
+          518.7350207543399,
+          10.431664991021156
+        ],
+        "tip": [
+          194.9953568526597,
+          563.1505059856117,
+          8.737076651987461
+        ],
+        "yawDegrees": 2.14
+      },
+      {
+        "size": [
+          844,
+          390
+        ],
+        "door": [
+          422.0000001445232,
+          299.63102426674317,
+          10.431664991021156
+        ],
+        "tip": [
+          421.9949780598017,
+          347.6719278363459,
+          8.737076651987461
+        ],
+        "yawDegrees": 2.14
+      }
+    ]
+  },
+  "captures": {
+    "path": "verification/exterior-form/flow-landing-v1/",
+    "errors": [],
+    "warnings": [],
+    "integratedEntry": "Reached existing room; actual-source arrival, curtain, threshold and room captures"
+  },
+  "performance": {
+    "conditions": "Headless Chrome ANGLE D3D11; one fresh temporary Chrome profile for interleaved before/after/after/before at each viewport, DPR1; both shaders use corrected camera; 12.5 sec idle after seek(8.05); target idle 30fps. GPU query approximately every 30 drawn frames. No simultaneous test browser. Each page creates a fresh worker.",
+    "browser": "Chrome/155.0.8059.85",
+    "gpu": [
+      {
+        "vendorId": 32902,
+        "deviceId": 39497,
+        "subSysId": 1067194282,
+        "revision": 1,
+        "vendorString": "",
+        "deviceString": "Intel(R) Iris(R) Xe Graphics",
+        "driverVendor": "Intel",
+        "driverVersion": "32.0.101.6881"
+      },
+      {
+        "vendorId": 5140,
+        "deviceId": 140,
+        "subSysId": 0,
+        "revision": 0,
+        "vendorString": "",
+        "deviceString": "Microsoft Basic Render Driver",
+        "driverVendor": "",
+        "driverVersion": "10.0.26100.9549"
+      }
+    ],
+    "summary": [
+      {
+        "variant": "before",
+        "sourceHash": "cb643aaa893aada0a205bfec4fe0c3f7c5c6e07ad076b0eaddec1ef65a5644b3",
+        "size": [
+          1600,
+          1000
+        ],
+        "firstDrawMs": 1235.2999999523163,
+        "buildMs": 2001.8999999761581,
+        "triangles": 147638,
+        "drawCalls": 13,
+        "gpuN": 10,
+        "gpuMedianMs": 5.967604,
+        "gpuP95Ms": 9.064531,
+        "cpuMedianMs": 0.20000004768371582,
+        "cpuP95Ms": 0.7999999523162842,
+        "frameMedianMs": 33.30000000000018,
+        "frameP95Ms": 33.69999999999891
+      },
+      {
+        "variant": "after",
+        "sourceHash": "678d58b1328e193fb18dee27884e1737892655f77d99a0c9160c35998a120aca",
+        "size": [
+          1600,
+          1000
+        ],
+        "firstDrawMs": 915.8999999761581,
+        "buildMs": 1598.2000000476837,
+        "triangles": 147638,
+        "drawCalls": 13,
+        "gpuN": 11,
+        "gpuMedianMs": 13.539895,
+        "gpuP95Ms": 20.63427,
+        "cpuMedianMs": 0.20000004768371582,
+        "cpuP95Ms": 0.5,
+        "frameMedianMs": 33.30000000000018,
+        "frameP95Ms": 33.5
+      },
+      {
+        "variant": "after",
+        "sourceHash": "678d58b1328e193fb18dee27884e1737892655f77d99a0c9160c35998a120aca",
+        "size": [
+          1600,
+          1000
+        ],
+        "firstDrawMs": 93.60000002384186,
+        "buildMs": 1289.2999999523163,
+        "triangles": 147638,
+        "drawCalls": 13,
+        "gpuN": 12,
+        "gpuMedianMs": 6.209843,
+        "gpuP95Ms": 8.841353,
+        "cpuMedianMs": 0.20000004768371582,
+        "cpuP95Ms": 0.6000000238418579,
+        "frameMedianMs": 33.30000000000018,
+        "frameP95Ms": 33.599999999998545
+      },
+      {
+        "variant": "before",
+        "sourceHash": "cb643aaa893aada0a205bfec4fe0c3f7c5c6e07ad076b0eaddec1ef65a5644b3",
+        "size": [
+          1600,
+          1000
+        ],
+        "firstDrawMs": 130.20000004768372,
+        "buildMs": 1771.5999999046326,
+        "triangles": 147638,
+        "drawCalls": 13,
+        "gpuN": 11,
+        "gpuMedianMs": 6.53901,
+        "gpuP95Ms": 17.377708,
+        "cpuMedianMs": 0.20000004768371582,
+        "cpuP95Ms": 0.5,
+        "frameMedianMs": 33.30000000000018,
+        "frameP95Ms": 33.5
+      },
+      {
+        "variant": "before",
+        "sourceHash": "cb643aaa893aada0a205bfec4fe0c3f7c5c6e07ad076b0eaddec1ef65a5644b3",
+        "size": [
+          390,
+          844
+        ],
+        "firstDrawMs": 184.30000007152557,
+        "buildMs": 1199.6000000238419,
+        "triangles": 147638,
+        "drawCalls": 13,
+        "gpuN": 12,
+        "gpuMedianMs": 4.587187,
+        "gpuP95Ms": 15.337187,
+        "cpuMedianMs": 0.20000004768371582,
+        "cpuP95Ms": 0.3999999761581421,
+        "frameMedianMs": 33.30000000000018,
+        "frameP95Ms": 33.5
+      },
+      {
+        "variant": "after",
+        "sourceHash": "678d58b1328e193fb18dee27884e1737892655f77d99a0c9160c35998a120aca",
+        "size": [
+          390,
+          844
+        ],
+        "firstDrawMs": 117.39999997615814,
+        "buildMs": 1619.2000000476837,
+        "triangles": 147638,
+        "drawCalls": 13,
+        "gpuN": 11,
+        "gpuMedianMs": 4.328125,
+        "gpuP95Ms": 13.914634,
+        "cpuMedianMs": 0.30000007152557373,
+        "cpuP95Ms": 0.8000000715255737,
+        "frameMedianMs": 33.30000000000018,
+        "frameP95Ms": 33.400000000001455
+      },
+      {
+        "variant": "after",
+        "sourceHash": "678d58b1328e193fb18dee27884e1737892655f77d99a0c9160c35998a120aca",
+        "size": [
+          390,
+          844
+        ],
+        "firstDrawMs": 84.10000002384186,
+        "buildMs": 1166.1000000238419,
+        "triangles": 147638,
+        "drawCalls": 13,
+        "gpuN": 12,
+        "gpuMedianMs": 4.203489,
+        "gpuP95Ms": 10.212187,
+        "cpuMedianMs": 0.2999999523162842,
+        "cpuP95Ms": 0.7999999523162842,
+        "frameMedianMs": 33.30000000000018,
+        "frameP95Ms": 33.5
+      },
+      {
+        "variant": "before",
+        "sourceHash": "cb643aaa893aada0a205bfec4fe0c3f7c5c6e07ad076b0eaddec1ef65a5644b3",
+        "size": [
+          390,
+          844
+        ],
+        "firstDrawMs": 77.29999995231628,
+        "buildMs": 1350.3999999761581,
+        "triangles": 147638,
+        "drawCalls": 13,
+        "gpuN": 12,
+        "gpuMedianMs": 7.761093,
+        "gpuP95Ms": 9.251458,
+        "cpuMedianMs": 0.20000004768371582,
+        "cpuP95Ms": 0.3999999761581421,
+        "frameMedianMs": 33.30000000000018,
+        "frameP95Ms": 33.5
+      }
+    ],
+    "errors": [],
+    "warnings": [],
+    "interpretation": "All samples retained about 30fps (33.3ms median interval). GPU medians vary substantially: desktop before 5.968/6.539, after 13.540/6.210; narrow before 4.587/7.761, after 4.328/4.203 ms. No consistent regression or reliable speedup established. Outliers retained. Same triangles/draws/textures/optical samples; no physical mobile test."
+  },
+  "review": {
+    "loadedImages": 7,
+    "controls": "Concept and previous checkpoint comparison passed",
+    "errors": 0,
+    "captures": "verification/exterior-form/flow-landing-review-utf8/"
+  },
+  "stop": "Await user approval; no merge/push/deploy"
+}

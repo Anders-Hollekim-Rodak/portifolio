@@ -29,7 +29,7 @@ const DOOR = {a:.74*S, sill:FLOOR, shoulder:at(1.26), peak:at(2.54), plane:5.35*
 const FRAME = {a:.86*S, sill:FLOOR, shoulder:at(1.26), peak:at(2.72)};
 const control = w => w.shoulder + .6*(w.peak-w.shoulder);
 // The mineral landing before the door, its top at the room floor level.
-const PLATFORM = {z:DOOR.plane-.01, length:1.72};
+const PLATFORM = {z:DOOR.plane-.01, length:1.72, yaw:2.14*Math.PI/180};
 // The room's terms (scene-camera.js wayIn and entryView): x right, y up from
 // the floor and z toward the door, in metres, with the table at the origin
 // and the chamber's centre at z 0.3 (room-scene.js placement); yaw (left
@@ -174,9 +174,9 @@ function gridNormals(p,rows,cols,inside){
  return n;
 }
 // A level mineral tongue with a rounded polished lip and shallow underside.
-// The tongue curves left after the doorway; x=0 remains on its level top
-// throughout the unchanged published walk from LANDING to the threshold.
-const terraceCentre=v=>-.92*Math.pow(clamp(v),1.3);
+// The tongue points toward the idle camera. Its doorway root stays fixed;
+// x=0 remains on the level top throughout the unchanged entry walk.
+const terraceCentre=v=>Math.tan(PLATFORM.yaw)*Math.max(0,PLATFORM.length*clamp(v)+PLATFORM.z-DOOR.plane);
 const terraceHalf=v=>{v=clamp(v);return Math.max(.002,(.38+.13*Math.sin(Math.min(v/.6,1)*Math.PI/2))*(v>.62?Math.sqrt(Math.max(0,1-((v-.62)/.38)**2)):1));};
 function platform(){
  const p=[],ix=[],rows=64,cols=72,{z,length}=PLATFORM,from=DOOR.back+.04,mid=FLOOR-.012,shape=[];
@@ -514,7 +514,7 @@ vec4 current(vec3 q){
  float cloud=.16+.28*mist;
  float vein=pow(1.-abs(detail*.9+fine*1.1-1.),16.)*smoothstep(.32,.78,broad);
  vec3 hue=mix(vec3(.035,.43,.35),vec3(.065,.13,.34),smoothstep(.2,.85,q.x*.22+fine*.6)*.48);
- vec3 glow=hue*(vein*.008+cloud*.007);
+ vec3 glow=hue*(vein*.024+cloud*.009);
  return vec4(glow,cloud);
 }
 vec3 liquidGlass(vec3 q,vec3 n,vec3 V){
@@ -535,11 +535,11 @@ vec3 liquidGlass(vec3 q,vec3 n,vec3 V){
   float glow=exp(-dot(heart*vec3(1.,1.15,.85),heart*vec3(1.,1.15,.85))*3.2);
   // Quiet refracted currents in the depth, not bright mottling on the skin.
   float pulse=.98+.02*sin(time*.51);
-  vec3 light=mist.rgb*(.3+glow*5.)+vec3(.028,.18,.18)*glow*(.12+mist.a*.5)*pulse;
+  vec3 light=mist.rgb*(.3+glow*7.5)+vec3(.028,.18,.18)*glow*(.12+mist.a*.5)*pulse;
   vec2 h=heart.xy*vec2(1.,.88);float angle=atan(h.y,h.x+1e-5),radius=length(h);
   float curl=exp(-pow((radius-(.34+.085*sin(angle*2.+heart.z*3.+time*.026)))/.052,2.));
   curl*=exp(-pow((heart.z+.1)/.40,2.))*smoothstep(-.18,.38,-h.y+h.x*.35);
-  light+=vec3(.030,.24,.23)*curl*.65*pulse;
+  light+=vec3(.030,.24,.23)*curl*1.4*pulse;
   inner+=T*light*dt;
   T*=exp(-(.12+mist.a*.85)*dt);
  }
@@ -726,7 +726,7 @@ vec3 bronze(vec3 n,vec3 V,vec3 inward){
 // (terraceHalf).
 float terrace(vec2 o){
  float v=max(0.,(o.y-${f(PLATFORM.z)})/${f(PLATFORM.length)});
- o.x+=.92*pow(sat(v),1.3);
+ o.x-=${f(Math.tan(PLATFORM.yaw))}*max(0.,${f(PLATFORM.length)}*sat(v)+${f(PLATFORM.z-DOOR.plane)});
  if(v<=.62)return .38+.13*sin(min(v/.6,1.)*1.5708)-abs(o.x);
  return (1.-length(vec2(o.x/.51,(v-.62)/.38)))*.51;
 }
