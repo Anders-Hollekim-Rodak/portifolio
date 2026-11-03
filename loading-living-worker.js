@@ -290,6 +290,31 @@ function traceryGLSL(w){
 // A continuous chamber/tower skin, built ONCE after the first core frame.
 // Smooth union + marching tetrahedra; welded edges, analytic-field normals.
 // No per-frame meshing, no volume raymarch, no additional scene light.
+// Sculpt only the roof into a grown wizard-hat silhouette. This runs once
+// on the existing mesh; no added draw calls, shader work or moving fittings.
+function wizardRoofPoint(p){
+ const y=p[1],root=TOWER_ROOF-.11;
+ if(y<=root)return p;
+ const h=clamp((y-TOWER_BASE)/(TOWER_TIP-TOWER_BASE));
+ const cx=TOWER[0]+Math.sin(h*7.5)*.15*h*h,cz=TOWER[2]+Math.cos(h*7.5)*.085*h*h;
+ const dx=p[0]-cx,dz=p[2]-cz,reach=1-smooth((Math.hypot(dx,dz)-.62)/.15);
+ if(reach===0)return p; // The main dome stays outside the roof's footprint.
+ const t=clamp((y-TOWER_ROOF)/(TOWER_TIP-TOWER_ROOF)),join=smooth((y-root)/.11)*reach;
+ const brim=Math.exp(-Math.pow(t/.115,2)),scale=1+join*(.30*brim+.38*Math.sin(t*Math.PI));
+ const ripple=.050*Math.sin(Math.atan2(dz,dx)*2+.4)*Math.exp(-Math.pow(t/.14,2))*join;
+ return[cx+dx*scale-.54*Math.pow(t,2.5)*reach,y-.10*t*t*reach+ripple,cz+dz*scale+.07*t*t*reach];
+}
+function sculptWizardRoof(mesh){
+ for(let i=0;i<mesh.p.length;i+=3){
+  if(mesh.p[i+1]<=TOWER_ROOF-.11)continue;
+  const p=mesh.p.slice(i,i+3),q=wizardRoofPoint(p);if(q===p)continue;
+  const n=norm(mesh.n.slice(i,i+3)),t=norm(cross(n,Math.abs(n[1])<.9?[0,1,0]:[1,0,0])),b=cross(n,t),e=.0005;
+  const tangent=sub(wizardRoofPoint(add(p,t,e)),wizardRoofPoint(add(p,t,-e)));
+  const bitangent=sub(wizardRoofPoint(add(p,b,e)),wizardRoofPoint(add(p,b,-e))),nn=norm(cross(tangent,bitangent));
+  for(let k=0;k<3;k++){mesh.p[i+k]=q[k];mesh.n[i+k]=nn[k];}
+ }
+ return mesh;
+}
 const SHELL_BOUNDS={lo:[-1.45,-1.52,-1.60],hi:[2.10,TOWER_TIP+.08,1.52]};
 function sanctuaryShell(){
  const step=.045,{lo,hi}=SHELL_BOUNDS;
@@ -351,7 +376,7 @@ function sanctuaryShell(){
  }
  tip.n=gridNormals(tip.p,tipRows,tipCols,i=>{const y=TOWER_TIP+(tipBottom-TOWER_TIP)*i/tipRows,h=clamp((y-TOWER_BASE)/(TOWER_TIP-TOWER_BASE));return[TOWER[0]+Math.sin(h*7.5)*.15*h*h,y,TOWER[2]+Math.cos(h*7.5)*.085*h*h];});
  merge(mesh,tip);
- if(mesh.p.length/3>=65536)throw Error('Sanctuary exceeds 16-bit mesh budget');return mesh;
+ if(mesh.p.length/3>=65536)throw Error('Sanctuary exceeds 16-bit mesh budget');return sculptWizardRoof(mesh);
 }
 
 const COMMON=`

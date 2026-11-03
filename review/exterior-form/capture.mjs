@@ -151,7 +151,8 @@ try {
    ['threequarter',[4.4,2.2,9.0],[.15,.35,0],.55],
    ['rear',[-5.5,2,-8.5],[.15,.35,0],.56],
    ['entrance-detail',[.8,-.1,3.8],[0,-.35,1.18],.53],
-   ['tower-detail',[3,1.3,3.3],[1.35,.55,-.7],.47]
+   ['tower-detail',[3,1.3,3.3],[1.35,.55,-.7],.47],
+   ...(process.argv.includes('--roof-detail')?[['roof-detail',[2.0,1.7,3.8],[1.3,1.56,-.65],.40]]:[])
   ];
   for(const[name,eye,target,fov]of views){
    await evaluate('__reviewWorker.postMessage('+JSON.stringify({type:'review-view',view:{eye,target,fov}})+')');
