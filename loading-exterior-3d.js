@@ -1,11 +1,20 @@
 /* Exterior lifecycle bridge. The worker owns formation, geometry and camera.
-   No room resources are imported or disposed here. Gate readiness is separate. */
-export function createLoadingPortal(container,{reducedMotion,onPhase}={}){
+   No room resources are imported or disposed here. Gate readiness is separate.
+   Held ({hold: true}, the loading gate): the building is made ready in its
+   thread while the page loads (prepared: its first frame drawn, its shell
+   built, every program compiled), unseen behind the seed, and forms only on
+   start(). The messages, page to worker: init {hold}, start, fly, entry,
+   resize, pause, play, still, seek, seekFlight, rate, snapshot, dispose;
+   worker to page: drawn, prepared, phase, formed, stats, view, aperture,
+   flown, snapshot, failed, disposed. */
+export function createLoadingPortal(container,{reducedMotion,onPhase,hold=false}={}){
  const media=matchMedia('(prefers-reduced-motion: reduce)');
  let reduced=reducedMotion??media.matches,worker=null,canvas=null,fallback=null,disposed=false,live=false;
- let formResolve,readyResolve,flightResolve,observer,startupTimer,killTimer,override=reducedMotion;
+ let formResolve,readyResolve,preparedResolve,flightResolve,observer,startupTimer,killTimer,override=reducedMotion,started=!hold;
  let snapshotResolve=null,drawing=null,phase='core',failed=null,cleanup={worker:false,observer:false,listeners:false};
- const ready=new Promise(r=>readyResolve=r),formation=new Promise(r=>formResolve=r);
+ const ready=new Promise(r=>readyResolve=r),formation=new Promise(r=>formResolve=r),prepared=new Promise(r=>preparedResolve=r);
+ // Shown once it forms: held, the seed stands in until start().
+ const show=()=>{if(disposed||!live||!started)return;element.dataset.view='live';element.classList.add('is-live');canvas?.classList.add('is-live');element.querySelector('.loading-living__seed')?.remove();};
  const element=document.createElement('div');
  element.className='loading-exterior loading-living is-shown';element.dataset.view='starting';
  element.dataset.reducedMotion=String(reduced);element.setAttribute('aria-hidden','true');
@@ -23,7 +32,7 @@ export function createLoadingPortal(container,{reducedMotion,onPhase}={}){
   try{const module=await import('./loading-exterior.js');if(disposed)return;fallback=module.createLoadingPortal(container,{reducedMotion:true});await fallback.ready;}
   catch{ /* The solar core remains if both worker and image delivery fail. */ }
   if(fallback)element.style.display='none';
-  readyResolve(false);formResolve({fallback:true});flightResolve?.(false);
+  readyResolve(false);preparedResolve(false);formResolve({fallback:true});flightResolve?.(false);
   window.siteReadiness?.exteriorStarted?.();
   emit('loading-exterior-fallback',{reason:failed});
  }
@@ -42,7 +51,9 @@ export function createLoadingPortal(container,{reducedMotion,onPhase}={}){
  };
  window.loadingExterior3d=debug;
  const api={
-  element,ready,formation,doorwayGrowth:0,
+  element,ready,prepared,formation,doorwayGrowth:0,
+  // The formation begins (held only; otherwise it began with the first frame).
+  start(){if(started)return;started=true;post({type:'start'});show();},
   get flies(){return live;},
   get opening(){const r=container.getBoundingClientRect();return fallback?.opening||{x:r.left+r.width/2,y:r.top+r.height*.6,width:r.width*.13,height:r.height*.22};},
   wake(){return ready;},
@@ -72,7 +83,7 @@ export function createLoadingPortal(container,{reducedMotion,onPhase}={}){
     killTimer=setTimeout(()=>{worker?.terminate();worker=null;cleanup.worker=true;},250);
    }else cleanup.worker=true;
    fallback?.dispose();fallback=null;canvas?.remove();canvas=null;element.remove();
-   readyResolve(false);formResolve({disposed:true});flightResolve?.(false);api.onAperture=null;api.onView=null;
+   readyResolve(false);preparedResolve(false);formResolve({disposed:true});flightResolve?.(false);api.onAperture=null;api.onView=null;
   }
  };
  try{
@@ -84,11 +95,11 @@ export function createLoadingPortal(container,{reducedMotion,onPhase}={}){
    if(data.type==='disposed'){clearTimeout(killTimer);worker?.terminate();worker=null;cleanup.worker=true;return;}
    if(disposed)return;
    if(data.type==='drawn'){
-    clearTimeout(startupTimer);live=true;element.dataset.view='live';element.classList.add('is-live');
-    canvas?.classList.add('is-live');element.querySelector('.loading-living__seed')?.remove();readyResolve(true);
+    clearTimeout(startupTimer);live=true;show();readyResolve(true);if(!hold)preparedResolve(true);
     // The room builds from here (site-ready.js exterior).
     window.siteReadiness?.exteriorStarted?.();
-   }else if(data.type==='formed'){formResolve(data);}
+   }else if(data.type==='prepared'){preparedResolve(true);}
+   else if(data.type==='formed'){formResolve(data);}
    else if(data.type==='phase')setPhase(data);
    else if(data.type==='stats')drawing=data;
    else if(data.type==='view')api.onView?.(data.view);
@@ -98,7 +109,7 @@ export function createLoadingPortal(container,{reducedMotion,onPhase}={}){
    else if(data.type==='failed')fail(data.message);
   };
   worker.onerror=event=>{event.preventDefault();fail(event.message||'Worker failed');};
-  worker.postMessage({type:'init',canvas:offscreen,width:r.width,height:r.height,dpr:devicePixelRatio||1,reduced},[offscreen]);
+  worker.postMessage({type:'init',canvas:offscreen,width:r.width,height:r.height,dpr:devicePixelRatio||1,reduced,hold},[offscreen]);
   observer=new ResizeObserver(resize);observer.observe(canvas);
   // Given up on only once its messages so far have been read: a page busy
   // building the room may not yet have read a first frame that came in time

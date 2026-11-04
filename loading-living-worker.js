@@ -46,6 +46,25 @@ const f = v => (v<0?'('+(+v).toFixed(4)+')':(+v).toFixed(4)), v3 = a => 'vec3('+
 let gl, pg, meshes, canvas, noiseTexture, width=1,height=1,screenW=1,screenH=1,dpr=1;
 let disposed=false, paused=false, reduced=false, first=true, formed=false, flight=null, sentView='', lighter=false;
 let time=0,last=null,rate=1,handle=0, lastDraw=-100,phase='',statsAt=0;
+// Held (init hold: the page's loading gate): the first frame, then the shell
+// built and every program compiled (prepared), and the clock still until the
+// page says start, once everything the scene needs is loaded.
+let holding=false,started=false;
+// Messages that come before the programs are linked (init, below) wait for them.
+const early=[];
+// Ready to link: compiled, where the browser can tell (asking a program's
+// link status before then holds the GPU process, and every page drawing on
+// it, until the compile is done).
+const compiled=list=>!parallel||list.every(m=>gl.getProgramParameter(m.p,parallel.COMPLETION_STATUS_KHR));
+// Held: the shell and fittings built, their program linked once compiled,
+// and drawn once, so everything the formation draws is ready.
+function prepare(){
+ if(disposed)return;
+ try{
+  if(!fit(false)){setTimeout(prepare,16);return;}
+  render(true);send('prepared');
+ }catch(error){send('failed',{message:error?.message||String(error)});}
+}
 let metrics={frames:0,frameGaps:[],cpuMs:[],gpuMs:[],triangles:0,drawCalls:0}, query=null, ext=null;
 const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
 const smooth=x=>{x=clamp(x);return x*x*(3-2*x);};
@@ -1077,11 +1096,12 @@ function render(wait=true){
  if(age>=FORMATION&&!formed){formed=true;send('formed',{seconds:age});}
  if(time-statsAt>1){statsAt=time;report();}
 }
-function schedule(){if(disposed||paused||(reduced&&!first&&!flight))return;handle=requestAnimationFrame(loop);}
+function schedule(){if(disposed||paused||(holding&&!started)||(reduced&&!first&&!flight))return;handle=requestAnimationFrame(loop);}
 function loop(now){
  if(disposed||paused)return;
  const dt=last===null?0:(now-last)/1000;last=now;time+=Math.min(dt,.08)*rate;
- const interval=flight?1000/60:1000/30;
+ // 60 frames a second: by the time the building forms, nothing else is loading.
+ const interval=1000/60;
  if(now-lastDraw>=interval-2){
   if(lastDraw>0){metrics.frameGaps.push(now-lastDraw);if(metrics.frameGaps.length>300)metrics.frameGaps.shift();}
   lastDraw=now;render(false);
@@ -1093,20 +1113,31 @@ function stop(){disposed=true;cancelAnimationFrame(handle);if(gl){if(fittings&&!
 function setEntry(view){if(view&&['x','y','z','yaw','tilt','lens'].every(k=>Number.isFinite(view[k])))entry={...entry,...view};}
 onmessage=({data:d})=>{
  try{
+  if(d.type!=='init'&&d.type!=='dispose'&&gl&&!pg){early.push(d);return;}
   if(d.type==='init'){
-   canvas=d.canvas;screenW=d.width;screenH=d.height;dpr=d.dpr||1;reduced=!!d.reduced;
+   canvas=d.canvas;screenW=d.width;screenH=d.height;dpr=d.dpr||1;reduced=!!d.reduced;holding=!!d.hold;
    gl=canvas.getContext('webgl',{alpha:true,antialias:true,premultipliedAlpha:true,depth:true,powerPreference:'low-power'});
    if(!gl||!gl.getExtension('OES_standard_derivatives'))throw Error('Worker WebGL with derivatives unavailable');
    ext=gl.getExtension('EXT_disjoint_timer_query');resize();makeNoiseMap();
    parallel=gl.getExtension('KHR_parallel_shader_compile');
    const made={glass:program(VERTEX,FRAGMENT),halo:program(HALO_VS,HALO_FS),sky:program(SKY_VS,SKY_FS),hole:program(HOLE_VS,HOLE_FS)};
-   pg=Object.fromEntries(Object.entries(made).map(([name,made])=>[name,linked(made)]));
    meshes={core:upload(lathe(y=>Math.sqrt(Math.max(0,.145**2-y*y)),.145,-.145,40,64,CORE)),
     feed:upload(lathe(y=>.006+.014*Math.sin((y-1.22)/.38*Math.PI),1.60,1.22,28,24)),
     porch:upload(porch()),tunnel:upload(passage()),left:upload(curtain(-1)),right:upload(curtain(1)),hole:upload(hole())};
    meshes.quad=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,meshes.quad);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
-   render(reduced);schedule();
-  }else if(d.type==='resize'){screenW=d.width;screenH=d.height;dpr=d.dpr||1;resize();if(paused||reduced)render();}
+   const begin=()=>{
+    if(disposed)return;
+    if(!compiled(Object.values(made))){setTimeout(begin,16);return;}
+    try{
+     pg=Object.fromEntries(Object.entries(made).map(([name,made])=>[name,linked(made)]));
+     render(reduced);schedule();
+     if(holding)setTimeout(prepare);
+     while(early.length)onmessage({data:early.shift()});
+    }catch(error){send('failed',{message:error?.message||String(error)});}
+   };
+   begin();
+  }else if(d.type==='start'){if(!started){started=true;last=null;lastDraw=-100;schedule();}}
+  else if(d.type==='resize'){screenW=d.width;screenH=d.height;dpr=d.dpr||1;resize();if(paused||reduced||(holding&&!started))render();}
   else if(d.type==='fly'){
    setEntry(d.entry);
    const p=pose();flight={start:time,eye:p.eye,target:p.target,fov:p.fov};paused=false;last=null;cancelAnimationFrame(handle);schedule();
