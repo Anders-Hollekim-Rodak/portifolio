@@ -247,8 +247,13 @@ laptop (Intel Iris Xe). Its own programs had it at 70–100 % CPU throughout.
 
 ## The changes
 
-1. **The room's plain lights are lit in a loop** (`room-light-loops.js`,
-   imported first by `room-scene.js`).
+1. **Tried, then taken out again: the room's plain lights lit in a loop**
+   (`room-light-loops.js`, in `76aa38d`, removed in the next commit).
+   - It shortened the first visit's compile, but every frame then cost the
+     GPU more: a full room render took 33.3 against 32.0 ms at the entry
+     and 24.7-27.1 against 22.2-23.0 ms at the shelf (`EXT_disjoint_timer_query`).
+     The user puts a smooth experience first, so the loops went. The notes
+     below are kept for the record.
    - three.js writes out each light's code once per light. The lights with
      a shadow or a projected map stay that way, because a shadow map can
      only be picked by a constant.
@@ -261,8 +266,8 @@ laptop (Intel Iris Xe). Its own programs had it at 70–100 % CPU throughout.
    - The loop's `break` is never taken. ANGLE emits `[loop]` only for loops
      with a gradient in them; with `[loop]` forced by hand the 16 took
      15.8 s, but there is no clean way to get it from GLSL.
-2. **The crystal ball's lamp loop** (`tools-shelf.js`) is an ordinary loop
-   too.
+2. **The crystal ball's lamp loop** (`tools-shelf.js`): the same, and taken
+   out with it.
 3. **The room's modules are preloaded** (`index.html`, `modulepreload`).
 4. **From performance phase 2** (see that worktree's `HANDOFF.md`), its
    verified items, ported to `cc5242d`:
@@ -290,7 +295,7 @@ laptop (Intel Iris Xe). Its own programs had it at 70–100 % CPU throughout.
   - The portal awake, after the cloth is pulled and `intro-done`: zero
     pixels differ, two runs of each tree.
 - **Cold loads, alternating with the published code**, three of each, at
-  83–100 % CPU from other programs:
+  83–100 % CPU from other programs. With the light loops (`76aa38d`):
 
 | | Published | This branch |
 | --- | --- | --- |
@@ -299,6 +304,19 @@ laptop (Intel Iris Xe). Its own programs had it at 70–100 % CPU throughout.
 | The room ready | 26.4 / 27.7 / 23.3 s | 17.5 / 20.1 / 19.1 s |
 | In the room | 38.0 / 40.7 / 35.0 s | 29.5 / 32.4 / 30.7 s |
 | Main-thread long tasks | 21–26 s | 8–11 s |
+
+  Again without the loops (this commit), 2026-11-04, three of each at
+  51–99 % CPU:
+
+| | Published | This branch |
+| --- | --- | --- |
+| The building first draws | 21.9 / 7.7 / 7.8 s | 9.3 / 3.7 / 2.8 s |
+| The room ready | 30.7 / 25.8 / 11.9 s | 25.8 / 12.8 / 12.2 s |
+| In the room | 42.4 / 36.8 / 24.5 s | 37.5 / 26.2 / 25.6 s |
+| Main-thread long tasks | 11–33 s | 6–10 s |
+
+  Still pixel-identical (entry, shelf, chair, the awake portal);
+  `shelf-tools-check` and `lighting-check` pass.
 
 ## What remains
 

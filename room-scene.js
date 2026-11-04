@@ -1,5 +1,4 @@
 import * as THREE from './vendor/three/three.module.js';
-import './room-light-loops.js';
 import {createRitualTable} from './table-model.js';
 import {createRitualCloth} from './ritual-cloth.js';
 import {createRoomArchitecture,architectureTuning} from './room-architecture.js';
