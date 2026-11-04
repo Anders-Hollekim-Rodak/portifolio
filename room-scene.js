@@ -6,7 +6,7 @@ import {createChamber,chamberTuning} from './room-chamber.js';
 import {createNightSky} from './night-sky.js';
 import {createRoomSmoke} from './room-smoke.js';
 import {createRoomLamps,lampTuning} from './room-lamps.js';
-import {createFigmaObject,createGrimoireObject,createCrystalBallObject} from './tools-shelf.js';
+import {createFigmaObject,createGrimoireObject,createCrystalBallObject,createObsidianObject} from './tools-shelf.js';
 import {createShelfSound} from './tools-sound.js';
 import {createFirstPerson} from './first-person.js';
 import {towerLayout} from './room-tower.js';
@@ -1442,7 +1442,10 @@ if (renderer) {
   let primed=false;
   function prime() {
     const culled=[];scene.traverse(o=>{if(o.frustumCulled){o.frustumCulled=false;culled.push(o);}});
+    // The cloth too, which this renderer draws once it flies (warm-up above).
+    const clothLayers=cloth.layers.mask;cloth.layers.enable(0);
     renderer.setScissor(0,0,1,1);renderer.setScissorTest(true);renderer.render(scene,camera);renderer.setScissorTest(false);
+    cloth.layers.mask=clothLayers;
     for(const o of culled) o.frustumCulled=true;
   }
   function draw() {
@@ -1540,18 +1543,28 @@ if (renderer) {
   }
   // A new place, or a walk setting off: nothing stays lit from before.
   addEventListener('room-navigation',()=>{for(const name in markHover) hoverMark(name,false);});
-  // ---- The shelf's objects (tools-shelf.js, TOOLS_INTEGRATION.md): Figma in
-  // enamel, the grimoire and the crystal ball, standing on the nook's shelf
-  // (its top at 1.4375 m), facing into the room. They answer the pointer and
-  // move on the pulse below at 30 Hz, but only while the eye is near enough
-  // to see them (`shelfNear` m); further off they hold still and the room
-  // stays drawn on demand. Their sound is off until the corner toggle.
+  // ---- The nook's objects (tools-shelf.js, TOOLS_INTEGRATION.md), facing
+  // into the room: on the shelf (its top at 1.4375 m) Figma in enamel to the
+  // left and the Obsidian stone floating to the right; below them on the desk
+  // the grimoire to the left, turned to the middle of the desk's front edge,
+  // and the crystal ball to the right. They answer the pointer and move on
+  // the pulse below at 30 Hz, but only while the eye is near enough to see
+  // them (`shelfNear` m); further off they hold still and the room stays
+  // drawn on demand. Their sound is off until the corner toggle.
   const shelfRoot=new THREE.Group();shelfRoot.name='physical shelf tools';
   shelfRoot.position.set(nook.back+.13,nook.shelf+.0175,nook.z);
   shelfRoot.rotation.y=Math.PI/2;shell.add(shelfRoot);
   const shelfSound=createShelfSound(),toolOptions={camera,reducedMotion:()=>stillMotion.matches,sound:shelfSound};
-  const shelfTools=[createFigmaObject(toolOptions),createGrimoireObject(toolOptions),createCrystalBallObject(toolOptions)];
-  shelfTools.forEach((tool,i)=>{tool.group.position.x=(i-1)*.48;tool.group.userData.shelfToolIndex=i;shelfRoot.add(tool.group);});
+  const shelfTools=[createFigmaObject(toolOptions),createGrimoireObject(toolOptions),createCrystalBallObject(toolOptions),createObsidianObject(toolOptions)];
+  // Places in the shelf's frame: x to the visitor's right, y up from the
+  // shelf's top, z out from the shelf toward the room. The desk's top and
+  // front edge, from the chamber (room-chamber.js: the worktop at nook.desk,
+  // reaching .07 m out of the nook's mouth).
+  const deskTop=nook.desk-shelfRoot.position.y,deskFront=nook.x+.07-shelfRoot.position.x;
+  const shelfPlaces=[{x:-.48,y:0,z:0},{x:-.42,y:deskTop,z:.24,face:[0,deskFront]},{x:.46,y:deskTop,z:.22},{x:.48,y:0,z:0}];
+  shelfTools.forEach((tool,i)=>{const at=shelfPlaces[i];tool.group.position.set(at.x,at.y,at.z);
+    if(at.face) tool.group.rotation.y=Math.atan2(at.face[0]-at.x,at.face[1]-at.z);
+    tool.group.userData.shelfToolIndex=i;shelfRoot.add(tool.group);});
   const shelfPointer=new THREE.Vector2(4,4),shelfRay=new THREE.Raycaster(),shelfCentre=new THREE.Vector3(),shelfNear=4.5;
   let shelfAt=0,shelfShadowAt=0,shelfAwakeUntil=0,shelfHover=-1;
   const wakeShelf=()=>{shelfAwakeUntil=performance.now()+1200;};
@@ -1812,9 +1825,13 @@ if (renderer) {
   // lights its frames see. Without the extension three.js cannot tell when
   // a program is ready, so the first frame compiles them itself, as before;
   // after 30 s the room shows regardless.
-  const onLayer=n=>({traverse:fn=>scene.traverse(o=>{if(o.layers.isEnabled(n))fn(o);}),traverseVisible(){}});
-  const warmUp=(target,n)=>{camera.layers.set(n);try{return target.compileAsync(onLayer(n),camera,scene);}finally{camera.layers.set(0);}};
+  // The cloth is drawn by the room's renderer too, once it flies off the
+  // table (layer 0, Release above): compiled there now as well, or that
+  // first frame of its flight compiles it (two programs, front and back,
+  // nearly 5 s on a laptop's GPU).
+  const onLayer=(n,also=[])=>({traverse:fn=>{scene.traverse(o=>{if(o.layers.isEnabled(n))fn(o);});also.forEach(fn);},traverseVisible(){}});
+  const warmUp=(target,n,also)=>{camera.layers.set(n);try{return target.compileAsync(onLayer(n,also),camera,scene);}finally{camera.layers.set(0);}};
   const parallel=renderer.extensions.has('KHR_parallel_shader_compile');
-  Promise.race([parallel?Promise.all([warmUp(renderer,0),front&&warmUp(front,1)]):null,new Promise(done=>setTimeout(done,30000))])
+  Promise.race([parallel?Promise.all([warmUp(renderer,0,[cloth]),front&&warmUp(front,1)]):null,new Promise(done=>setTimeout(done,30000))])
     .catch(()=>{}).then(()=>{warmed=true;invalidate();});
 }

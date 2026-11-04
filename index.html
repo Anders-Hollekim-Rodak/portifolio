@@ -134,7 +134,25 @@
       </header>
       <div class="app-content">
 
-        <div class="project-list" data-project-list>
+        <!-- The sealed pack the Prosjekter card opens onto (script.js,
+             PROSJEKT-PAKKE): opened once, its three cards become a pile of
+             their own beside the hand and the Prosjekter card is spent. -->
+        <div class="pack-stage" id="prosjektPakke">
+          <div class="pack" role="img" aria-label="Forseglet pakke: prosjekter">
+            <span class="pack-peek" style="--peek-i: -1; --card-glow-rgb: var(--relic-teal-rgb)"></span>
+            <span class="pack-peek" style="--peek-i: 1; --card-glow-rgb: var(--relic-burgundy-rgb)"></span>
+            <span class="pack-peek" style="--peek-i: 0; --card-glow-rgb: var(--relic-gold-rgb)"></span>
+            <span class="pack-wrap">
+              <span class="pack-top"><span class="pack-label">prosjekter</span></span>
+              <span class="pack-seal"></span>
+            </span>
+          </div>
+          <button class="pack-open" type="button">Åpne pakke</button>
+        </div>
+
+        <!-- The former deck, kept for the project pages to come; the pack
+             has taken its place on the page. -->
+        <div class="project-list" data-project-list hidden>
 
           <div class="deck" id="prosjekterDeck"></div>
           <div class="deck-tags" id="prosjekterTags"></div>
@@ -425,6 +443,9 @@
 </button>
 
 <script>
+// Errors shown on the page while working on it (a local server, or ?debug):
+// the tests read them. Visitors to the published site never see the box.
+if (['localhost', '127.0.0.1'].includes(location.hostname) || new URLSearchParams(location.search).has('debug'))
 window.addEventListener('error', (e) => {
   const box = document.createElement('div');
   box.style.cssText = 'position:fixed;top:0;left:0;z-index:999999;background:#fff;color:#c00;font:12px monospace;padding:8px;white-space:pre-wrap;max-width:100vw;';
@@ -456,7 +477,12 @@ if (new URLSearchParams(location.search).get('impactDebug') === '1') {
   harness.src = 'dev/portal-impact.js';
   document.body.append(harness);
 }
-</script>
-<script src="dev/arrange.js"></script></body>
+// The layout editor (dev/arrange.js) likewise, only on request: ?arrange
+if (new URLSearchParams(location.search).has('arrange')) {
+  const editor = document.createElement('script');
+  editor.src = 'dev/arrange.js';
+  document.body.append(editor);
+}
+</script></body>
 </html>
 
