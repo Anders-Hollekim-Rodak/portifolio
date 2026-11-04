@@ -11,6 +11,23 @@
 <link rel="modulepreload" href="loading-gate.js">
 <link rel="modulepreload" href="loading-exterior-3d.js">
 <link rel="modulepreload" href="loading-exterior.js">
+<!-- The room's modules (room-scene.js and what it imports), fetched from the
+     start: otherwise each is found only once the one importing it has been
+     read, and three.js alone was asked for seconds into the load. -->
+<link rel="modulepreload" href="vendor/three/three.module.js">
+<link rel="modulepreload" href="room-scene.js">
+<link rel="modulepreload" href="room-light-loops.js">
+<link rel="modulepreload" href="table-model.js">
+<link rel="modulepreload" href="ritual-cloth.js">
+<link rel="modulepreload" href="room-architecture.js">
+<link rel="modulepreload" href="room-chamber.js">
+<link rel="modulepreload" href="night-sky.js">
+<link rel="modulepreload" href="room-smoke.js">
+<link rel="modulepreload" href="room-lamps.js">
+<link rel="modulepreload" href="tools-shelf.js">
+<link rel="modulepreload" href="tools-sound.js">
+<link rel="modulepreload" href="first-person.js">
+<link rel="modulepreload" href="room-tower.js">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">

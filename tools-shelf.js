@@ -1000,18 +1000,17 @@ export function createCrystalBallObject(options = {}) {
         vec3 glints=vec3(0.),wrap=vec3(0.),sky=vec3(.006,.007,.009);
         #if NUM_POINT_LIGHTS > 0
         PointLight lamp;
-        // three.js unrolls this loop by copying its body; the inner block
-        // keeps each copy's locals to itself.
-        #pragma unroll_loop_start
-        for(int i=0;i<NUM_POINT_LIGHTS;i++){{
+        // In a loop, not written out once per lamp: the same sums from a far
+        // smaller shader, quicker to compile on a first visit (as the room's
+        // own lights, room-light-loops.js).
+        for(int i=0;i<NUM_POINT_LIGHTS;i++){
           lamp=pointLights[ i ];
           vec3 toLight=lamp.position+vViewPosition;float d=length(toLight);vec3 L=toLight/d;
           vec3 C=lamp.color*getDistanceAttenuation(d,lamp.distance,lamp.decay);
           float nh=max(dot(Nv,normalize(L+Vv)),0.);
           glints+=mix(C,vec3(dot(C,vec3(.333))),.55)*(pow(nh,1200.)*2.2+pow(nh,90.)*.12+pow(nh,16.)*.003);
           wrap+=C*pow(edge,4.5)*smoothstep(-.1,.6,dot(Nv,L))*max(0.,.5-.5*dot(L,Vv));
-        }}
-        #pragma unroll_loop_end
+        }
         #endif
         #if NUM_HEMI_LIGHTS > 0
         #pragma unroll_loop_start

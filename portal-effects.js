@@ -54,38 +54,44 @@
 
   // The orb's shader compiles and links off the main thread (gl-link.js);
   // until it is ready, and if it fails, the CSS material carries the orb. At
-  // load it waits unseen in the shaft, so nothing shows the difference.
+  // load it waits unseen in the shaft, so nothing shows the difference: it is
+  // set up once the visitor is in (site-ready.js afterEntry).
   let gl = null, uniforms, orbReady = Promise.resolve();
   // The CSS material follows the same trajectory when WebGL is unavailable.
   const cssMaterial = error => console.warn('Portal uses CSS material:', error.message);
-  try {
-    const context = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false, antialias: true });
-    if (!context) throw new Error('WebGL unavailable');
-    const compile = (type, source) => {
-      const shader = context.createShader(type);
-      context.shaderSource(shader, source); context.compileShader(shader);
-      return shader;
-    };
-    const program = context.createProgram();
-    const vs = compile(context.VERTEX_SHADER, material.vertex), fs = compile(context.FRAGMENT_SHADER, material.fragment);
-    context.attachShader(program, vs); context.attachShader(program, fs); context.linkProgram(program);
-    context.deleteShader(vs); context.deleteShader(fs);
-    orbReady = window.linkProgramAsync(context, program).then(() => {
-      context.useProgram(program);
-      const buffer = context.createBuffer(); context.bindBuffer(context.ARRAY_BUFFER, buffer);
-      context.bufferData(context.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]), context.STATIC_DRAW);
-      const pos = context.getAttribLocation(program, 'position'); context.enableVertexAttribArray(pos);
-      context.vertexAttribPointer(pos, 2, context.FLOAT, false, 0, 0);
-      uniforms = Object.fromEntries(['time','aspect','fluid','morph','charge','spin','tint','viewYaw','viewPitch',
-        'stretch','breath','awake','swirl','taper','neck','grow','presence','waterline','open','look','feel','lightDir','lightCol']
-        .map(name => [name, context.getUniformLocation(program, name)]));
-      gl = context;
-      matter.classList.add('webgl');
-    }, cssMaterial);
-  } catch (error) {
-    cssMaterial(error);
-  }
-  window.siteReadiness?.track('orb', orbReady.then(() => gl ? 'ready' : 'css'));
+  let begin; const begun = new Promise(resolve => { begin = resolve; });
+  const initialize = () => {
+    try {
+      const context = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false, antialias: true });
+      if (!context) throw new Error('WebGL unavailable');
+      const compile = (type, source) => {
+        const shader = context.createShader(type);
+        context.shaderSource(shader, source); context.compileShader(shader);
+        return shader;
+      };
+      const program = context.createProgram();
+      const vs = compile(context.VERTEX_SHADER, material.vertex), fs = compile(context.FRAGMENT_SHADER, material.fragment);
+      context.attachShader(program, vs); context.attachShader(program, fs); context.linkProgram(program);
+      context.deleteShader(vs); context.deleteShader(fs);
+      orbReady = window.linkProgramAsync(context, program).then(() => {
+        context.useProgram(program);
+        const buffer = context.createBuffer(); context.bindBuffer(context.ARRAY_BUFFER, buffer);
+        context.bufferData(context.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]), context.STATIC_DRAW);
+        const pos = context.getAttribLocation(program, 'position'); context.enableVertexAttribArray(pos);
+        context.vertexAttribPointer(pos, 2, context.FLOAT, false, 0, 0);
+        uniforms = Object.fromEntries(['time','aspect','fluid','morph','charge','spin','tint','viewYaw','viewPitch',
+          'stretch','breath','awake','swirl','taper','neck','grow','presence','waterline','open','look','feel','lightDir','lightCol']
+          .map(name => [name, context.getUniformLocation(program, name)]));
+        gl = context;
+        matter.classList.add('webgl');
+      }, cssMaterial);
+    } catch (error) {
+      cssMaterial(error);
+    }
+    begin();
+  };
+  window.siteReadiness?.done('orb', 'deferred');
+  (window.siteReadiness?.afterEntry ?? (work => work()))(initialize);
   canvas.addEventListener('webglcontextlost', event => {
     event.preventDefault(); gl = null; matter.classList.remove('webgl');
   });
@@ -483,7 +489,7 @@
   requestAnimationFrame(animate);
   window.portalMatter = {
     // Settles once the orb's shader has linked or the CSS material has taken over.
-    get ready() { return orbReady; },
+    get ready() { return begun.then(() => orbReady); },
     // Reaction offsets are sampled additively; no second owner of the orb pose.
     get canReact() { return mode === 'idle' && !transition; },
     charge(value, rotation = 0) { charge = value; spin = rotation * Math.PI / 180; },

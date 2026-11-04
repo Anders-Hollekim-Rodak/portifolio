@@ -61,7 +61,11 @@ function hazeMask() {
   }
   ctx.putImageData(pixels,0,0);return `url("${canvas.toDataURL()}")`;
 }
-layer.style.setProperty('--aura-haze-mask',hazeMask());
+// Drawn once the visitor is in (site-ready.js afterEntry), or at the latest
+// as the aura first shows (sync): the page's load has no use for it.
+let hazed=false;
+const haze=()=>{if(hazed)return;hazed=true;layer.style.setProperty('--aura-haze-mask',hazeMask());};
+(window.siteReadiness?.afterEntry??(work=>work()))(haze);
 const wisps = [
   {el:part('aura-wisp aura-wisp--teal'),x:-.25,y:-.20,z:.10,w:.59,h:.22,phase:0},
   {el:part('aura-wisp aura-wisp--purple'),x:.27,y:.12,z:.20,w:.46,h:.24,phase:2.1},
@@ -157,6 +161,7 @@ function schedule() {
 }
 function sync() {
   wasReduced=motion.matches;const next=enabled&&document.body.classList.contains('intro-done')&&!document.body.classList.contains('table-covered');
+  if(next&&!hazed)haze();
   if(next!==active){active=next;fade=active?(motion.matches?1:0):0;window.sceneCamera?.facesEye?.(layer,active);}
   if(raf){cancelAnimationFrame(raf);raf=0;}
   last=0;
