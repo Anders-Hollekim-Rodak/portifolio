@@ -135,6 +135,8 @@
  animation:living-seed 3.8s ease-in-out infinite;
 }
 @keyframes living-seed{50%{scale:1.06;filter:brightness(1.12)}}
+/* Held (loading-gate.js), the seed stands in until the building forms, then fades as the core grows in its place. */
+.loading-living__seed.is-leaving{opacity:0;transition:opacity .7s ease;}
 /* Once the doorway opens, the live view draws the void and its stars itself,
    with the doorway clear through them to the room (loading-living-worker.js):
    the gate's own give way. */

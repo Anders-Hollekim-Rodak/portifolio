@@ -78,7 +78,9 @@ try {
     return result.result.value;
   };
   const sleep = ms => new Promise(r => setTimeout(r, ms));
-  async function until(expression, timeout = 30000) {
+  // Entry now comes after the whole load and the scene that follows it
+  // (loading-gate.js): the building forming and the flight, about 18 s.
+  async function until(expression, timeout = 60000) {
     const start = Date.now();
     while (!await evaluate(GATE_OPEN + ' && (' + expression + ')')) {
       if (Date.now() - start > timeout) throw new Error('Timed out: ' + expression + '\n' + JSON.stringify(await evaluate(`({state:document.readyState,hidden:document.hidden,body:document.body.className,errors:[...document.querySelectorAll('body>div')].filter(e=>e.textContent.startsWith('JS ERROR')).map(e=>e.textContent)})`)));

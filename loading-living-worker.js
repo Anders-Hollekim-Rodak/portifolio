@@ -1030,11 +1030,16 @@ function render(wait=true){
  // left alone: a new frame each time, even an empty one, would only take the
  // room's.
  const through=camera.fade>=1;
+ // At the door itself, just before the eye is through, the doorway's outline
+ // passes behind it and its opening can no longer be drawn: what was drawn
+ // then was the void over the whole view for a few frames. The room behind
+ // is already the whole view (covered), so the canvas is only cleared.
+ const atDoor=!through&&!!points&&!points.every(p=>p[2]>.001);
  if(!through){gl.viewport(0,0,width,height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);}
  metrics.drawCalls=0;
- const measured=!through&&ext&&!query&&metrics.frames%30===0;
+ const measured=!through&&!atDoor&&ext&&!query&&metrics.frames%30===0;
  if(measured){query=ext.createQueryEXT();ext.beginQueryEXT(ext.TIME_ELAPSED_EXT,query);}
- if(!through){
+ if(!through&&!atDoor){
   gl.enable(gl.DEPTH_TEST);gl.depthMask(true);gl.disable(gl.BLEND);
   const use=g=>{
    gl.useProgram(g.p);gl.uniformMatrix4fv(g.u.vp,false,m);if(g.u.noiseMap)gl.uniform1i(g.u.noiseMap,0);

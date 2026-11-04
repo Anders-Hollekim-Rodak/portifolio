@@ -14,7 +14,9 @@ export function createLoadingPortal(container,{reducedMotion,onPhase,hold=false}
  let snapshotResolve=null,drawing=null,phase='core',failed=null,cleanup={worker:false,observer:false,listeners:false};
  const ready=new Promise(r=>readyResolve=r),formation=new Promise(r=>formResolve=r),prepared=new Promise(r=>preparedResolve=r);
  // Shown once it forms: held, the seed stands in until start().
- const show=()=>{if(disposed||!live||!started)return;element.dataset.view='live';element.classList.add('is-live');canvas?.classList.add('is-live');element.querySelector('.loading-living__seed')?.remove();};
+ const show=()=>{if(disposed||!live||!started)return;element.dataset.view='live';element.classList.add('is-live');canvas?.classList.add('is-live');
+  // The seed gives way as the core grows in its place (the formation's first 0.65 s), not before.
+  const seed=element.querySelector('.loading-living__seed');if(seed){seed.classList.add('is-leaving');setTimeout(()=>seed.remove(),hold?800:0);}};
  const element=document.createElement('div');
  element.className='loading-exterior loading-living is-shown';element.dataset.view='starting';
  element.dataset.reducedMotion=String(reduced);element.setAttribute('aria-hidden','true');
