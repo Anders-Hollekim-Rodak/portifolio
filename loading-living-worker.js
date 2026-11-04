@@ -79,7 +79,10 @@ function bodyRadius(y){
 // Two broad, directional folds wrap from the entrance toward the tower.
 // The narrow upper crest rolls over a wide hollow, like folded mineral glass.
 function bodyFold(a,y){
- const wrap=Math.cos(a),positive=.5*(wrap+Math.sqrt(wrap*wrap+.025)),negative=positive-wrap,crest=.31-.97*positive-.70*negative;
+ // Mirror the right-hand fold language onto the left. Round the centre
+ // so the paired folds meet as one soft crest above the entrance.
+ const side=Math.abs(Math.cos(a)),wrap=side<.14?.07+side*side/.28:side;
+ const positive=.5*(wrap+Math.sqrt(wrap*wrap+.025)),negative=positive-wrap,crest=.31-.97*positive-.70*negative;
  const envelope=Math.pow(Math.max(0,1-((y-.03)/(y>.03?1.26:1.48))**2),.5);
  const upper=(.045+.19*smooth((wrap+.18)/.5))*Math.exp(-Math.pow((y-crest)/.15,2))-.035*Math.exp(-Math.pow((y-crest+.19)/.19,2));
  const lower=.14*Math.exp(-Math.pow((y-(-.94+.20*wrap))/.12,2));
@@ -118,20 +121,41 @@ function extrude(pts,z0,z1,into,mesh={p:[],n:[],ix:[]}){
 // A continuous nested arch: the outer rows meet the orb surface rather than
 // ending on a flat applied porch. Doorway coordinates remain the room's own.
 function porch(){
- const inner=arch(DOOR,48),outer=arch({a:1.86*S,sill:FLOOR-.015,shoulder:at(1.87),peak:at(3.76)},48),rows=40,cols=inner.length-1,p=[],n=[],ix=[];
+ const rawInner=arch(DOOR,48),rawOuter=arch({a:1.86*S,sill:FLOOR-.015,shoulder:at(1.87),peak:at(3.76)},48),inner=[],outer=[];
+ // Sample the straight jambs too: a single tall quad cannot follow the
+ // folds of the body and leaves a flat, visibly cut-off cheek beside the door.
+ for(let j=0;j<rawInner.length-1;j++){
+  const length=Math.max(Math.hypot(...sub(rawInner[j+1],rawInner[j])),Math.hypot(...sub(rawOuter[j+1],rawOuter[j]))),steps=Math.max(1,Math.ceil(length/.016));
+  for(let k=0;k<steps;k++){inner.push(lerp(rawInner[j],rawInner[j+1],k/steps));outer.push(lerp(rawOuter[j],rawOuter[j+1],k/steps));}
+ }
+ inner.push(rawInner.at(-1));outer.push(rawOuter.at(-1));
+ const rows=40,cols=inner.length-1,p=[],n=[],ix=[];
  for(let j=0;j<=cols;j++)for(let i=0;i<=rows;i++){
   const t=i/rows,x=inner[j][0]+(outer[j][0]-inner[j][0])*t,y=inner[j][1]+(outer[j][1]-inner[j][1])*t;
   const oy=FLOOR+(y-FLOOR)/K,r=bodyRadius(oy);
-  let back=Math.sqrt(Math.max(.01,r*r-x*x));
-  for(let pass=0;pass<4;pass++){const rr=r+bodyFold(Math.atan2(back,x),oy);back=Math.sqrt(Math.max(.01,rr*rr-x*x));}
-  // Match the shell tangent at the outer edge; no buried intersecting rim.
-  back+=.003;
+  // Solve against the same radial field as the shell; the former short
+  // fixed-point iteration oscillated at steep folds and left visible seams.
+  let lo=0,hi=1.8;
+  for(let pass=0;pass<22;pass++){const z=(lo+hi)/2;if(Math.hypot(x,z)>r+bodyFold(Math.atan2(z,x),oy))hi=z;else lo=z;}
+  let back=(lo+hi)/2;
+  // Match the shell tangent and tuck the last millimetre under it, so the
+  // sampled outer edge disappears into the body instead of ending in a lip.
+  back-=.001;
   const envelope=Math.sin(t*Math.PI)**2,shoulder=(.022+.012*Math.sin(t*Math.PI*4))*envelope;
-  p.push(x,y,DOOR.plane+.014+(back-DOOR.plane-.014)*smooth(t)+shoulder);n.push(0,0,1);
+  const lift=DOOR.plane+.003-back,roundedLift=.5*(lift+Math.sqrt(lift*lift+.0004));
+  const extension=lift+(roundedLift-lift)*smooth(t/.12);
+  p.push(x,y,back+extension*(1-smooth(t))+shoulder);n.push(0,0,1);
  }
  for(let j=0;j<cols;j++)for(let i=0;i<rows;i++){const a=j*(rows+1)+i,b=a+rows+1;ix.push(a,a+1,b,b,a+1,b+1);}
  n.fill(0);for(let k=0;k<ix.length;k+=3){const [a,b,c]=ix.slice(k,k+3),v=cross(sub(p.slice(b*3,b*3+3),p.slice(a*3,a*3+3)),sub(p.slice(c*3,c*3+3),p.slice(a*3,a*3+3)));for(const q of[a,b,c])for(let d=0;d<3;d++)n[q*3+d]+=v[d];}
- for(let k=0;k<n.length;k+=3){const v=norm(n.slice(k,k+3));n[k]=v[0];n[k+1]=v[1];n[k+2]=v[2];}return{p,n,ix};
+ // Match the analytic body normal over the outer blend, rather than the
+ // one-sided triangle normal of the patch edge (visible under glass highlights).
+ const bodyField=q=>{const oy=FLOOR+(q[1]-FLOOR)/K;return Math.hypot(q[0],q[2])-bodyRadius(oy)-bodyFold(Math.atan2(q[2],q[0]),oy);};
+ for(let k=0;k<n.length;k+=3){
+  let v=norm(n.slice(k,k+3));const blend=smooth(((k/3)%(rows+1)/rows-.60)/.35);
+  if(blend>0){const q=p.slice(k,k+3),e=.0005,gradient=[0,1,2].map(d=>{const a=q.slice(),b=q.slice();a[d]+=e;b[d]-=e;return bodyField(a)-bodyField(b);});let outward=norm(gradient);if(v.reduce((s,x,d)=>s+x*outward[d],0)<0)outward=outward.map(x=>-x);v=norm(lerp(v,outward,blend));}
+  n[k]=v[0];n[k+1]=v[1];n[k+2]=v[2];
+ }return{p,n,ix};
 }
 
 // The passage through it: the doorway's outline back into the body, closed

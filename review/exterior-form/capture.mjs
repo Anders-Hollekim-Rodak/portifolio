@@ -146,6 +146,12 @@ try {
   await until("window.previewPortal && document.querySelector('.loading-living').dataset.view==='live'");
   await evaluate("document.querySelector('.review').hidden=true;loadingExterior3d.seek(8.05)");
   await until('loadingExterior3d.stats.drawing?.time===8.05');await sleep(400);await shot('front-current');
+  const idleTimes=process.argv.find(a=>a.startsWith('--idle-times='))?.slice(13).split(',').map(Number)||[];
+  for(const t of idleTimes){
+   assert.ok(Number.isFinite(t)&&t>=6.6,'Idle capture time');await evaluate('loadingExterior3d.seek('+t+')');
+   await until('loadingExterior3d.stats.drawing?.time==='+t);await sleep(350);await shot('idle-'+t);
+  }
+  if(idleTimes.length){await evaluate('loadingExterior3d.seek(8.05)');await until('loadingExterior3d.stats.drawing?.time===8.05');await sleep(350);}
   const views=[
    ['reference-angle',[2.37,1.73,11.25],[-.02,.12,.03],.378],
    ['threequarter',[4.4,2.2,9.0],[.15,.35,0],.55],
