@@ -1442,7 +1442,10 @@ if (renderer) {
   let primed=false;
   function prime() {
     const culled=[];scene.traverse(o=>{if(o.frustumCulled){o.frustumCulled=false;culled.push(o);}});
+    // The cloth too, which this renderer draws once it flies (warm-up above).
+    const clothLayers=cloth.layers.mask;cloth.layers.enable(0);
     renderer.setScissor(0,0,1,1);renderer.setScissorTest(true);renderer.render(scene,camera);renderer.setScissorTest(false);
+    cloth.layers.mask=clothLayers;
     for(const o of culled) o.frustumCulled=true;
   }
   function draw() {
@@ -1822,9 +1825,13 @@ if (renderer) {
   // lights its frames see. Without the extension three.js cannot tell when
   // a program is ready, so the first frame compiles them itself, as before;
   // after 30 s the room shows regardless.
-  const onLayer=n=>({traverse:fn=>scene.traverse(o=>{if(o.layers.isEnabled(n))fn(o);}),traverseVisible(){}});
-  const warmUp=(target,n)=>{camera.layers.set(n);try{return target.compileAsync(onLayer(n),camera,scene);}finally{camera.layers.set(0);}};
+  // The cloth is drawn by the room's renderer too, once it flies off the
+  // table (layer 0, Release above): compiled there now as well, or that
+  // first frame of its flight compiles it (two programs, front and back,
+  // nearly 5 s on a laptop's GPU).
+  const onLayer=(n,also=[])=>({traverse:fn=>{scene.traverse(o=>{if(o.layers.isEnabled(n))fn(o);});also.forEach(fn);},traverseVisible(){}});
+  const warmUp=(target,n,also)=>{camera.layers.set(n);try{return target.compileAsync(onLayer(n,also),camera,scene);}finally{camera.layers.set(0);}};
   const parallel=renderer.extensions.has('KHR_parallel_shader_compile');
-  Promise.race([parallel?Promise.all([warmUp(renderer,0),front&&warmUp(front,1)]):null,new Promise(done=>setTimeout(done,30000))])
+  Promise.race([parallel?Promise.all([warmUp(renderer,0,[cloth]),front&&warmUp(front,1)]):null,new Promise(done=>setTimeout(done,30000))])
     .catch(()=>{}).then(()=>{warmed=true;invalidate();});
 }
