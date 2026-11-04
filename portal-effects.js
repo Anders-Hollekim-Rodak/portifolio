@@ -55,7 +55,8 @@
   // The orb's shader compiles and links off the main thread (gl-link.js);
   // until it is ready, and if it fails, the CSS material carries the orb. At
   // load it waits unseen in the shaft, so nothing shows the difference: it is
-  // set up once the visitor is in (site-ready.js afterEntry).
+  // set up once the room is built (site-ready.js beforeScene), before the
+  // scene begins.
   let gl = null, uniforms, orbReady = Promise.resolve();
   // The CSS material follows the same trajectory when WebGL is unavailable.
   const cssMaterial = error => console.warn('Portal uses CSS material:', error.message);
@@ -90,8 +91,8 @@
     }
     begin();
   };
-  window.siteReadiness?.done('orb', 'deferred');
-  (window.siteReadiness?.afterEntry ?? (work => work()))(initialize);
+  window.siteReadiness?.track('orb', begun.then(() => orbReady).then(() => gl ? 'ready' : 'css'));
+  (window.siteReadiness?.beforeScene ?? (work => work()))(initialize);
   canvas.addEventListener('webglcontextlost', event => {
     event.preventDefault(); gl = null; matter.classList.remove('webgl');
   });

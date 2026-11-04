@@ -84,8 +84,8 @@
   white-space: nowrap;
 }
 /* Offered only if the room is unusually slow: the visitor may go in anyway. */
-/* Below the building: the loading ring while the room is built; once it is
-   ready the ring closes and the visitor is asked to go on. */
+/* Below the building: the loading bar while everything the scene needs is
+   loaded; then the scene begins. */
 .loading-gate__foot {
   position: absolute;
   left: 0;
@@ -98,28 +98,46 @@
   pointer-events: none;
 }
 .loading-gate__foot > * { grid-area: 1 / 1; pointer-events: auto; }
-/* An honest ring: it turns while the room is being built (no percentage it
-   could not know), and closes when the room is genuinely ready. */
-.loading-gate__ring {
-  width: clamp(54px, 6.4svh, 64px);
-  height: clamp(54px, 6.4svh, 64px);
-  overflow: visible;
-  filter: drop-shadow(0 0 7px #6fe0c988) drop-shadow(0 0 18px #6fe0c933);
-  animation: gate-spin 1.15s linear infinite, gate-appear .6s ease-out both;
-  transition: opacity .6s ease .75s, scale .6s ease .75s;
+/* An honest bar: it fills as the load actually comes along (site-ready.js
+   siteProgress), never backwards, with the step it is on. The fill moves by
+   transform alone, so it keeps moving on the compositor while the page is
+   busy building the room; it fades once everything the scene needs is in. */
+.loading-gate__progress {
+  width: min(340px, 72vw);
+  display: grid;
+  gap: 10px;
+  transition: opacity .5s ease, translate .5s ease;
+  animation: gate-appear .6s ease-out both;
 }
-@keyframes gate-spin { to { rotate: 360deg; } }
-.loading-gate__track { fill: none; stroke: #cdbfe633; stroke-width: 3; }
-.loading-gate__arc {
-  fill: none;
-  stroke: #8ff0dc;
-  stroke-width: 3.2;
-  stroke-linecap: round;
-  stroke-dasharray: 30 100;
-  transition: stroke-dasharray .7s cubic-bezier(.3, .7, .3, 1), stroke .7s ease;
+.loading-gate__bar {
+  position: relative;
+  height: 5px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #cdbfe624;
+  box-shadow: inset 0 0 0 1px #cdbfe614;
 }
-.loading-gate.is-ready .loading-gate__ring { animation-play-state: paused; opacity: 0; scale: .85; }
-.loading-gate.is-ready .loading-gate__arc { stroke-dasharray: 100 0; stroke: #b9fff0; }
+.loading-gate__fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #4fc9b4, #8ff0dc 60%, #d6c4ff);
+  box-shadow: 0 0 12px #6fe0c9aa;
+  transform-origin: left center;
+  transform: scaleX(0);
+  will-change: transform;
+}
+.loading-gate__step {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font: 500 13px/1.3 Inter, system-ui, sans-serif;
+  letter-spacing: .06em;
+  color: #cdbfe6cc;
+}
+.loading-gate__percent { font-variant-numeric: tabular-nums; color: #e3d8f6; }
+.loading-gate.is-loaded .loading-gate__progress { opacity: 0; translate: 0 6px; }
 .loading-gate__continue {
   padding: 12px 22px;
   border: 0;
@@ -129,7 +147,7 @@
   letter-spacing: .12em;
   cursor: pointer;
   opacity: 0;
-  /* Starts to show 0.8 s after the ring closes (PROMPT_MS in loading-gate.js). */
+  /* Starts to show 0.8 s after the gate is ready. */
   transition: opacity .8s ease .8s;
 }
 .loading-gate__continue[hidden] { display: none; }
@@ -155,6 +173,6 @@
 .loading-gate__enter:focus-visible { border-color: #cdbfe6; outline: none; }
 @media (prefers-reduced-motion: reduce) {
   .loading-gate__orb, .loading-gate::before, .loading-gate::after { animation: none; }
-  .loading-gate__ring { animation: none; }
+  .loading-gate__progress { animation: none; }
   .loading-gate.is-ready .loading-gate__continue { animation: none; }
 }

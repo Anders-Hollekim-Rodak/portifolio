@@ -205,11 +205,11 @@
     event.preventDefault();gl=null;abyss.classList.remove('webgl');aperture.classList.remove('has-depth');invalidate();
   });
   canvas.addEventListener('webglcontextrestored',initialize);
-  // Set up once the visitor is in (site-ready.js afterEntry): until then the
-  // well lies under the cloth.
+  // Set up once the room is built (site-ready.js beforeScene), before the
+  // scene begins: until then the well lies under the cloth.
   let begin;const begun=new Promise(resolve=>{begin=resolve;});
-  window.siteReadiness?.done('depth','deferred');
-  (window.siteReadiness?.afterEntry??(work=>work()))(()=>{initialize();begin();});
+  window.siteReadiness?.track('depth',begun.then(()=>depthReady).then(()=>gl?'ready':'css'));
+  (window.siteReadiness?.beforeScene??(work=>work()))(()=>{initialize();begin();});
   new ResizeObserver(invalidate).observe(screen);
   addEventListener('scene-camera-change',()=>{movedAt=performance.now();invalidate();});
   // A pixel-ratio change need not resize anything (another monitor), and a

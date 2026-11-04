@@ -465,11 +465,11 @@
     const v = detail?.velocity, speed = v ? Math.hypot(v.x, v.y) || 0 : 0;
     splash(detail?.aperture?.x, detail?.aperture?.y, Math.min(1, .7 + speed / 5000));
   });
-  // Set up once the visitor is in (site-ready.js afterEntry): until then the
-  // pond lies under the cloth, and the CSS surface stands in.
+  // Set up once the room is built (site-ready.js beforeScene), before the
+  // scene begins: until then the CSS surface stands in, under the cloth.
   let begin; const begun = new Promise(resolve => { begin = resolve; });
-  window.siteReadiness?.done('water', 'deferred');
-  (window.siteReadiness?.afterEntry ?? (work => work()))(() => { initialize(); begin(); });
+  window.siteReadiness?.track('water', begun.then(() => surfaceReady).then(() => gl ? 'ready' : 'css'));
+  (window.siteReadiness?.beforeScene ?? (work => work()))(() => { initialize(); begin(); });
   sync();
   // lights: where the room's lights stand (read-only), shared with the orb.
   window.portalSurface = {params, layer, water, splash, glsl: WATER, lights: LIGHTS,

@@ -61,11 +61,11 @@ function hazeMask() {
   }
   ctx.putImageData(pixels,0,0);return `url("${canvas.toDataURL()}")`;
 }
-// Drawn once the visitor is in (site-ready.js afterEntry), or at the latest
-// as the aura first shows (sync): the page's load has no use for it.
+// Drawn once the room is built (site-ready.js beforeScene), before the scene
+// begins, or at the latest as the aura first shows (sync).
 let hazed=false;
 const haze=()=>{if(hazed)return;hazed=true;layer.style.setProperty('--aura-haze-mask',hazeMask());};
-(window.siteReadiness?.afterEntry??(work=>work()))(haze);
+(window.siteReadiness?.beforeScene??(work=>work()))(haze);
 const wisps = [
   {el:part('aura-wisp aura-wisp--teal'),x:-.25,y:-.20,z:.10,w:.59,h:.22,phase:0},
   {el:part('aura-wisp aura-wisp--purple'),x:.27,y:.12,z:.20,w:.46,h:.24,phase:2.1},

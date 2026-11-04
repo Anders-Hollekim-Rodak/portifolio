@@ -16,6 +16,11 @@ import {towerLayout} from './room-tower.js';
 // The room is built once the loading screen's building has drawn its first
 // frame, or 5 s on at the latest (site-ready.js exterior).
 await window.siteReadiness?.exterior;
+// The loading bar (site-ready.js siteProgress): the room's modules are in,
+// and the build below holds the page for a few seconds: one frame first, so
+// the bar is already moving on the compositor when it does.
+window.siteProgress?.set('files',1);window.siteProgress?.expect('build',4000);
+if(window.siteProgress) await new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve)));
 const host = document.getElementById('roomShell');
 const canvas = document.getElementById('roomCanvas');
 const view = window.sceneCamera;
@@ -1516,7 +1521,7 @@ if (renderer) {
     renderFront();
     // Ready (site-ready.js) two frames after the first full one, so nothing
     // that frame leaves behind lands after the visitor is in.
-    if(!shown){shown=true;requestAnimationFrame(()=>requestAnimationFrame(()=>window.siteReadiness?.done('room')));}
+    if(!shown){shown=true;requestAnimationFrame(()=>requestAnimationFrame(()=>{window.siteProgress?.set('light',1);window.siteReadiness?.done('room');}));}
   }
   function renderFront() {
     if(!front||frontLost||!warmed) return;
@@ -1843,7 +1848,56 @@ if (renderer) {
   // nearly 5 s on a laptop's GPU).
   const onLayer=(n,also=[])=>({traverse:fn=>{scene.traverse(o=>{if(o.layers.isEnabled(n))fn(o);});also.forEach(fn);},traverseVisible(){}});
   const warmUp=(target,n,also)=>{camera.layers.set(n);try{return target.compileAsync(onLayer(n,also),camera,scene);}finally{camera.layers.set(0);}};
+  // Built: the portal's layers set up beside the compile (site-ready.js
+  // beforeScene), and the bar counts the room's programs as each finishes,
+  // then expects the first frame (prime, below).
+  window.siteProgress?.set('build',1);window.siteReadiness?.roomBuilt?.();
   const parallel=renderer.extensions.has('KHR_parallel_shader_compile');
-  Promise.race([parallel?Promise.all([warmUp(renderer,0,[cloth]),front&&warmUp(front,1)]):null,new Promise(done=>setTimeout(done,30000))])
+  const compiling=Promise.race([parallel?Promise.all([warmUp(renderer,0,[cloth]),front&&warmUp(front,1)]):null,new Promise(done=>setTimeout(done,30000))]);
+  const programs=()=>[...renderer.info.programs,...(front?.info.programs||[])];
+  const counting=setInterval(()=>{const all=programs();if(all.length)window.siteProgress?.set('light',.85*all.filter(p=>p.isReady()).length/all.length);},250);
+  // The canvas textures painted above go to the GPU one a frame while the
+  // shaders compile: rastered all at once, they held the GPU process (and
+  // the loading bar with it) for seconds.
+  const frame=()=>new Promise(done=>requestAnimationFrame(()=>done()));
+  const uploads=[];
+  for(const [target,layer] of [[renderer,0],[front,1]]) {
+    if(!target) continue;
+    const seen=new Set();
+    scene.traverse(o=>{
+      if(!o.layers.isEnabled(layer)&&!(target===renderer&&o===cloth)) return;
+      for(const m of [].concat(o.material||[]))
+        for(const v of [...Object.values(m),...Object.values(m.uniforms||{}).map(u=>u?.value)])
+          if(v?.isTexture&&!seen.has(v)){seen.add(v);uploads.push([target,v]);}
+    });
+  }
+  const uploading=(async()=>{for(const [target,texture] of uploads){target.initTexture(texture);await frame();}})();
+  // Prime (above), in small batches a frame apart, so no one frame holds
+  // the GPU for long: every mesh drawn once into a single pixel by both
+  // renderers, the cloth by the room's too. The first full frame then
+  // draws the shadow maps whole again.
+  async function primeInBatches() {
+    const culled=[];scene.traverse(o=>{if(o.frustumCulled){o.frustumCulled=false;culled.push(o);}});
+    const clothLayers=cloth.layers.mask;cloth.layers.enable(0);
+    const drawn=[];scene.traverse(o=>{if((o.isMesh||o.isPoints||o.isLine||o.isSprite)&&o.visible)drawn.push(o);});
+    const passes=[];for(let i=0;i<drawn.length;i+=6)passes.push(new Set(drawn.slice(i,i+6)));
+    for(const [n,pass] of passes.entries()) {
+      for(const o of drawn) o.visible=pass.has(o);
+      camera.layers.set(0);renderer.shadowMap.needsUpdate=true;
+      renderer.setScissor(0,0,1,1);renderer.setScissorTest(true);renderer.render(scene,camera);renderer.setScissorTest(false);
+      if(front&&!frontLost) {
+        const background=scene.background;scene.background=null;camera.layers.set(1);
+        front.setScissor(0,0,1,1);front.setScissorTest(true);front.render(scene,camera);front.setScissorTest(false);
+        scene.background=background;camera.layers.set(0);
+      }
+      for(const o of drawn) o.visible=true;
+      window.siteProgress?.set('light',.85+.13*(n+1)/passes.length);
+      await frame();
+    }
+    cloth.layers.mask=clothLayers;
+    for(const o of culled) o.frustumCulled=true;
+    primed=true;shadowsStale=true;
+  }
+  compiling.catch(()=>{}).then(()=>uploading).then(()=>{clearInterval(counting);window.siteProgress?.set('light',.85);return primeInBatches();})
     .catch(()=>{}).then(()=>{warmed=true;invalidate();});
 }

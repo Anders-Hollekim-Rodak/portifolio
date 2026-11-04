@@ -172,13 +172,12 @@ try {
    const fast=await saveCase('fast-ready-fixture');
    assert.ok(fast.gate.formationAt>fast.gate.readyAt+4000);
    await click(40,18);assert.equal(await evaluate('__clicks'),1,'Input works after cleanup');
-   // Slow room stays covered after complete formation; retry never grants entry.
+   // Slow room: the building is made ready but held (it forms only once
+   // everything is loaded), the bar stays, and retry never grants entry.
    await cdp('Page.navigate',{url:fixture});await until("!!window.loadingExterior3d");
-   await until("!!loadingGate.stats.formationAt");
-   const a=await evaluate('loadingExterior3d.stats.drawing.frames');
-   await sleep(1200);const b=await evaluate('loadingExterior3d.stats.drawing.frames');
-   assert.ok(b>a,'Waiting building remains alive');
-   assert.equal(await evaluate('loadingExterior3d.stats.phase'),'waiting');
+   await until("!!loadingGate.stats.preparedAt");await sleep(1200);
+   assert.equal(await evaluate('loadingGate.stats.formationAt'),null,'The building does not form before the room is ready');
+   assert.equal(await evaluate("document.querySelector('.loading-gate').classList.contains('is-loaded')"),false,'The loading bar stays while the room is slow');
    await until("!document.querySelector('.loading-gate__enter').hidden",30000);await shot('slow-wait');
    assert.equal(await evaluate('loadingGate.veiled'),true);
    const r=await evaluate("(()=>{const r=document.querySelector('.loading-gate__enter').getBoundingClientRect();return[r.x+r.width/2,r.y+r.height/2]})()");
@@ -189,11 +188,11 @@ try {
    await evaluate('__paint()');await until(entered);await sleep(350);await assertEntered('Recovered fixture');
    await saveCase('slow-recovered-fixture');
    // Full-motion mobile and resize, while readiness is held.
-   await viewport(390,844);await cdp('Page.navigate',{url:fixture});await until("window.loadingExterior3d?.stats.phase==='waiting'");
-   await shot('mobile-formed');
+   await viewport(390,844);await cdp('Page.navigate',{url:fixture});await until("!!loadingGate.stats.preparedAt");
+   await shot('mobile-held');
    assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true);
    await viewport(844,390);await sleep(500);await shot('landscape-resized');
-   assert.equal(await evaluate('loadingExterior3d.stats.drawing.cssWidth || document.querySelector(".loading-living__canvas").clientWidth'),844);
+   assert.equal(await evaluate('loadingExterior3d.stats.drawing?.cssWidth || document.querySelector(".loading-living__canvas").clientWidth'),844);
    await viewport(390,844);await sleep(400);await evaluate('__ready()');await until(entered);await sleep(350);await assertEntered('Mobile resized');await saveCase('mobile-resize-fixture');
    // Reduced motion must draw one settled frame and stop, then fade after readiness.
    await viewport(1440,900,'reduce');await cdp('Page.navigate',{url:fixture});
