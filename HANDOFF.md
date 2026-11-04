@@ -207,3 +207,127 @@ must cover:
 3. **Loading screen phase:** add the `room-ready` event, and cover the
    page until it fires.
 4. **Item 3** only with the user's say on the trade-off.
+
+# The first visit's load (2026-11-04)
+
+The user found the published site (`main` = `cc5242d`) slow to load. They
+saw the orb alone in the middle of the screen for a long time. The building
+grew only once everything else had loaded.
+
+The work is on `feature/load-speed`, in the worktree
+`verification/load-speed`. Nothing on screen changes.
+
+## What the load was doing
+
+Measured with headless Chrome on ANGLE D3D11, with a fresh profile, on this
+laptop (Intel Iris Xe). Its own programs had it at 70–100 % CPU throughout.
+
+- **Most of a first visit is compiling shaders.**
+  - The GPU process's main thread was busy for 29 of 36 s.
+  - The D3D compiler took 33 s of CPU in its thread pool. Eighteen pixel
+    shaders took 28 s of that.
+  - The 16 lit room materials take 1.2–4.8 s each. Each holds the room's
+    19 lights written out one by one: 12 point lights, 7 spots, 3 of them
+    with soft shadows.
+  - The crystal ball (its own 12-light loop), the portal's orb and water,
+    and the building's glass take 0.9–3.6 s each.
+- **The room's first frame took 7.7 s.**
+  - `prime` draws every mesh once, and the first frame follows.
+  - On the main thread this shows as three.js's `checkShaderErrors` reads
+    (`getProgramInfoLog`). Each one waits while the GPU process works
+    through every draw ahead of it, including the driver's own compile of
+    each new shader.
+  - The building's worker cannot draw meanwhile. Its formation clock moves
+    at most 0.08 s a frame, so the orb stood still.
+- **The module graph started late.** On the published site, `three.module.js`
+  was first requested 3.9 s in, once the classic scripts had let the main
+  thread go.
+- **A second visit is quicker** (ready in 16 s against 21–24 s here),
+  because Chrome caches compiled shaders. A first visit pays in full.
+
+## The changes
+
+1. **Tried, then taken out again: the room's plain lights lit in a loop**
+   (`room-light-loops.js`, in `76aa38d`, removed in the next commit).
+   - It shortened the first visit's compile, but every frame then cost the
+     GPU more: a full room render took 33.3 against 32.0 ms at the entry
+     and 24.7-27.1 against 22.2-23.0 ms at the shelf (`EXT_disjoint_timer_query`).
+     The user puts a smooth experience first, so the loops went. The notes
+     below are kept for the record.
+   - three.js writes out each light's code once per light. The lights with
+     a shadow or a projected map stay that way, because a shadow map can
+     only be picked by a constant.
+   - The rest are lit in an ordinary loop: all 12 point lights and 4 of
+     the 7 spots. They are the same lights and the same sums, in the same
+     order.
+   - Compiled offline with `d3dcompiler_47.dll`, the 16 lit shaders took
+     26.5 s; with the loop they take 19.7 s. Their bytecode is about 30 %
+     smaller, which also shortens the driver's compile at first draw.
+   - The loop's `break` is never taken. ANGLE emits `[loop]` only for loops
+     with a gradient in them; with `[loop]` forced by hand the 16 took
+     15.8 s, but there is no clean way to get it from GLSL.
+2. **The crystal ball's lamp loop** (`tools-shelf.js`): the same, and taken
+   out with it.
+3. **The room's modules are preloaded** (`index.html`, `modulepreload`).
+4. **From performance phase 2** (see that worktree's `HANDOFF.md`), its
+   verified items, ported to `cc5242d`:
+   - The portal's water, well and orb are set up after entry
+     (`site-ready.js` `afterEntry`). Their readiness parts report
+     `deferred`.
+   - The aura's haze mask is drawn after entry, or at the latest when the
+     aura first shows.
+   - The cloth is painted once. The first paint is counted out with
+     `paintCloth(..., dry)`, so the cloth comes out exactly as before.
+   - The gate starts the building at once.
+   - The room builds once the building has drawn its first frame, at most
+     5 s on (`siteReadiness.exterior`).
+   - The gate gives up on the worker only once its messages so far have
+     been read (a `MessageChannel` round trip at the 12 s limit).
+   - Phase 2's item 6 (the building waiting for the room's textures) is
+     **not** included. It was only smoke-tested, and it changes the
+     worker (`loading-living-worker.js`), which is Astra's.
+
+## Verified
+
+- **Pixel-identical to `cc5242d`** at 1440×900 with motion reduced. The
+  published code renders these views the same from run to run.
+  - The entry, the shelf and the chair: zero pixels differ.
+  - The portal awake, after the cloth is pulled and `intro-done`: zero
+    pixels differ, two runs of each tree.
+- **Cold loads, alternating with the published code**, three of each, at
+  83–100 % CPU from other programs. With the light loops (`76aa38d`):
+
+| | Published | This branch |
+| --- | --- | --- |
+| The building first draws | 6.4 / 18.9 / 9.8 s | 5.9 / 4.9 / 4.6 s |
+| Its walls rise | 12.5 / 27.4 / 14.1 s | 11.2 / 8.5 / 8.5 s |
+| The room ready | 26.4 / 27.7 / 23.3 s | 17.5 / 20.1 / 19.1 s |
+| In the room | 38.0 / 40.7 / 35.0 s | 29.5 / 32.4 / 30.7 s |
+| Main-thread long tasks | 21–26 s | 8–11 s |
+
+  Again without the loops (this commit), 2026-11-04, three of each at
+  51–99 % CPU:
+
+| | Published | This branch |
+| --- | --- | --- |
+| The building first draws | 21.9 / 7.7 / 7.8 s | 9.3 / 3.7 / 2.8 s |
+| The room ready | 30.7 / 25.8 / 11.9 s | 25.8 / 12.8 / 12.2 s |
+| In the room | 42.4 / 36.8 / 24.5 s | 37.5 / 26.2 / 25.6 s |
+| Main-thread long tasks | 11–33 s | 6–10 s |
+
+  Still pixel-identical (entry, shelf, chair, the awake portal);
+  `shelf-tools-check` and `lighting-check` pass.
+
+## What remains
+
+- **The formation still finishes when the room does.** The building now
+  draws and grows from about 5 s. The room's first frame (`prime` and the
+  driver's compiles) still holds the GPU for a few seconds, and the
+  building waits through it.
+- **The bigger levers change the look.** Each is the user's decision:
+  - fewer lights, or simpler soft shadows (the three shadowed spots are now
+    most of each lit shader);
+  - a shorter flight in (about 11.5 s from ready to in).
+- **The formation's clock** could follow the wall clock instead of frames,
+  so the building finishes growing on time even when frames are sparse.
+  That is `loading-living-worker.js`, which is Astra's.

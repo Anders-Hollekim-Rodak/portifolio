@@ -13,6 +13,9 @@ import {towerLayout} from './room-tower.js';
 
 // Architecture and physical furniture. Portal, orb and HTML reader stay in their
 // own renderers; scene-camera.js gives both branches the same projection.
+// The room is built once the loading screen's building has drawn its first
+// frame, or 5 s on at the latest (site-ready.js exterior).
+await window.siteReadiness?.exterior;
 const host = document.getElementById('roomShell');
 const canvas = document.getElementById('roomCanvas');
 const view = window.sceneCamera;
@@ -884,8 +887,11 @@ if (renderer) {
   // Painted at the cloth's own proportions (Wm x Dm metres) so the hem,
   // sigils and inscription keep their size on any table. Returns the colour
   // texture and the inscription's glow mask (red: letters, green: halo).
-  function paintCloth(Wm,Dm) {
+  function paintCloth(Wm,Dm,dry=false) {
     const W=1024,H=Math.round(W*Dm/Wm),ppm=W/Wm,m=v=>v*ppm,sc=ppm/352;
+    // Counted out only (dry): the random draws of the velvet below, nothing
+    // painted (repaintCloth says why).
+    if(dry){for(let i=0;i<W*H/26;i++)for(let k=0;k<5;k++)random();for(let i=0;i<12*7;i++)random();return null;}
     const layer=()=>{const c=document.createElement('canvas');c.width=W;c.height=H;return c;};
     const image=layer(),g=image.getContext('2d');
     // Dark, calm velvet, so the inscription carries the eye.
@@ -1001,14 +1007,20 @@ if (renderer) {
   cloth.name='table cloth';cloth.layers.set(1);cloth.frustumCulled=false;scene.add(cloth);
   document.getElementById('tableCloth')?.classList.add('is-webgl');
   // Repainted whenever the cloth's proportions change with the viewport, and
-  // once the Cinzel web font has loaded.
-  let clothAspect=0;
+  // once the Cinzel web font has loaded. The first paint was always followed
+  // by that second one, even with the font already in, and the velvet takes
+  // its random draws from the room's shared sequence: with the font in, the
+  // first is now only counted out (dry), and the cloth comes out exactly as
+  // it always did, painted once.
+  let clothAspect=0,clothFont=false;
   function repaintCloth() {
-    const [Wm,Dm]=clothSize(),{map,glow}=paintCloth(Wm,Dm);
+    const [Wm,Dm]=clothSize();
+    if(!clothAspect&&!clothFont&&[...(document.fonts??[])].some(face=>/Cinzel/.test(face.family)&&face.status==='loaded')){clothFont=true;paintCloth(Wm,Dm,true);}
+    const {map,glow}=paintCloth(Wm,Dm);
     clothAspect=Wm/Dm;clothMaterial.map?.dispose();inscription.uInscription.value?.dispose();
     clothMaterial.map=map;inscription.uInscription.value=glow;clothMaterial.needsUpdate=true;invalidate();
   }
-  document.fonts?.load('600 64px Cinzel').then(()=>{if(clothAspect)repaintCloth();},()=>{});
+  document.fonts?.load('600 64px Cinzel').then(()=>{if(clothAspect&&!clothFont){clothFont=true;repaintCloth();}},()=>{});
   const clothSize=()=>ritualCloth.size;
   // Walls the dragged cloth meets, in scene coordinates: the chamber's twelve
   // bays (with the recesses that come down to the floor) and the tower's

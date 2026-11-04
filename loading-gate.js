@@ -55,13 +55,16 @@ if(gate){
  let detail;
  try{
   slow=setTimeout(()=>offer(),16000);
-  await new Promise(r=>requestAnimationFrame(()=>setTimeout(r)));
+  // The building starts at once, while the page is still being read (its
+  // module is preloaded, index.html): waiting for a frame first let the
+  // room's long build take every turn of the main thread, and the building
+  // began only once the room was done.
   try{
    const module=await import(new URL(mount.dataset.portal,document.baseURI));
    portal=module.createLoadingPortal(mount);
   }catch(error){
    const seed=document.createElement('div');seed.className='loading-living__seed';mount.append(seed);
-   stats.portalFailure=error.message;
+   stats.portalFailure=error.message;window.siteReadiness?.exteriorStarted?.();
   }
   stats.portal=portal?'loading-portal':'orb';stats.portalAt=Math.round(performance.now());
   const formed=Promise.resolve(portal?.formation).then(()=>{stats.formationAt=Math.round(performance.now());});

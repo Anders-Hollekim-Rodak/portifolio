@@ -24,6 +24,7 @@ export function createLoadingPortal(container,{reducedMotion,onPhase}={}){
   catch{ /* The solar core remains if both worker and image delivery fail. */ }
   if(fallback)element.style.display='none';
   readyResolve(false);formResolve({fallback:true});flightResolve?.(false);
+  window.siteReadiness?.exteriorStarted?.();
   emit('loading-exterior-fallback',{reason:failed});
  }
  function resize(){
@@ -85,6 +86,8 @@ export function createLoadingPortal(container,{reducedMotion,onPhase}={}){
    if(data.type==='drawn'){
     clearTimeout(startupTimer);live=true;element.dataset.view='live';element.classList.add('is-live');
     canvas?.classList.add('is-live');element.querySelector('.loading-living__seed')?.remove();readyResolve(true);
+    // The room builds from here (site-ready.js exterior).
+    window.siteReadiness?.exteriorStarted?.();
    }else if(data.type==='formed'){formResolve(data);}
    else if(data.type==='phase')setPhase(data);
    else if(data.type==='stats')drawing=data;
@@ -97,7 +100,14 @@ export function createLoadingPortal(container,{reducedMotion,onPhase}={}){
   worker.onerror=event=>{event.preventDefault();fail(event.message||'Worker failed');};
   worker.postMessage({type:'init',canvas:offscreen,width:r.width,height:r.height,dpr:devicePixelRatio||1,reduced},[offscreen]);
   observer=new ResizeObserver(resize);observer.observe(canvas);
-  startupTimer=setTimeout(()=>fail('Worker did not produce its first frame within 12 seconds'),12000);
+  // Given up on only once its messages so far have been read: a page busy
+  // building the room may not yet have read a first frame that came in time
+  // (the round trip below queues behind them).
+  startupTimer=setTimeout(()=>{
+   const channel=new MessageChannel();
+   channel.port1.onmessage=()=>{channel.port1.close();if(!live)fail('Worker did not produce its first frame within 12 seconds');};
+   channel.port2.postMessage(0);
+  },12000);
  }catch(error){fail(error.message);}
  return api;
 }

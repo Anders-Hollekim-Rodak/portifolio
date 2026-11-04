@@ -205,8 +205,11 @@
     event.preventDefault();gl=null;abyss.classList.remove('webgl');aperture.classList.remove('has-depth');invalidate();
   });
   canvas.addEventListener('webglcontextrestored',initialize);
-  initialize();
-  window.siteReadiness?.track('depth',depthReady.then(()=>gl?'ready':'css'));
+  // Set up once the visitor is in (site-ready.js afterEntry): until then the
+  // well lies under the cloth.
+  let begin;const begun=new Promise(resolve=>{begin=resolve;});
+  window.siteReadiness?.done('depth','deferred');
+  (window.siteReadiness?.afterEntry??(work=>work()))(()=>{initialize();begin();});
   new ResizeObserver(invalidate).observe(screen);
   addEventListener('scene-camera-change',()=>{movedAt=performance.now();invalidate();});
   // A pixel-ratio change need not resize anything (another monitor), and a
@@ -224,7 +227,7 @@
   document.documentElement.addEventListener('pointerleave',()=>{pointer.x=pointer.y=0;});
   window.portalDepth={defaults:volume.defaults,
     // Settles once the shader has linked or the CSS interior has taken over.
-    get ready(){return depthReady;},
+    get ready(){return begun.then(()=>depthReady);},
     // Live layer offsets in aperture units (x,y per layer, throat first): the
     // surface lights the water around the throat where the abyss shows it.
     offsets,
