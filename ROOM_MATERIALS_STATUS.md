@@ -45,12 +45,33 @@ On mains power, 2026-11-16, headless Chrome on the GPU:
 - Mean brightness of the whole frame: entry +1.8 %, chair +0.8 %, shelf -1.5 %. The walked ways are lighter (the boards inside the door by about a fifth), the edges darker.
 - Before and after from nine angles: https://claude.ai/artifact/J9g5V33yeWc4sDX3svkBXn (private to the user). Regenerate locally with `node tests/room-materials-shots.mjs --out=after --views=floor`, and with `PORTFOLIO_TEST_ROOT` set to a `main` checkout for the before.
 
-**Not measured yet:** `tests/performance-check.mjs` before and after. One baseline run was taken on mains before any change (`verification/performance/floor-before-1`). The after runs were due on 2026-11-17, when the laptop was on battery, where timings do not count. To do, on mains, interleaved: baseline with `PORTFOLIO_TEST_ROOT` on a `main` checkout, then this branch, twice each.
+## Performance
+
+Frame cost, measured on one page with the old and the new floor material swapped every ten frames (120 frames each, median, `render` plus `gl.finish`, 1440 x 900). The laptop was on battery; both materials ran under the same conditions:
+
+| View | Old floor | New floor |
+| --- | --- | --- |
+| Entry | 9.3 ms | 9.8 ms |
+| Chair | 8.4 ms | 8.2 ms |
+| Shelf | 6.2 ms | 6.8 ms |
+
+About half a millisecond more for a full frame, against 16.7 ms for 60 frames a second.
+
+`tests/performance-check.mjs`, baseline (`PORTFOLIO_TEST_ROOT` on `main`) and branch interleaved, two rounds, **on battery** (2026-11-17), so only a rough guide:
+
+| Run | Room ready | Frames a second (entry / chair / shelf) |
+| --- | --- | --- |
+| before 1 | 9.63 s | 60.3 / 60.2 / 60.3 |
+| after 1 | 9.54 s | 44.5 / 60.2 / 59.1 |
+| before 2 | timed out waiting for the room (the baseline's code) | |
+| after 2 | 20.52 s | 59.5 / 60.3 / 60.3 |
+
+The spread between runs of the same code (9.5 s and 20.5 s, a timeout on the baseline) is larger than any difference between the two. One comparable pair shows the same load time. The 44.5 at the entry appeared in one of two runs. A baseline on mains the day before (`floor-before-1`, 17.96 s under the profiler, 60 frames a second) is from another day and not comparable either. **Still to do: this check on mains power, interleaved, before anything is merged.**
 
 ## Remaining
 
 1. The user's review of the floor: is the wear right, is the grain right close up, go on to step 2?
-2. `performance-check` before and after, on mains (above).
+2. `performance-check` before and after again, on mains (Performance, above).
 3. Step 2: columns, posts, beams and the gallery's front get their own timber (grain that follows each piece, darker in joints, worn edges); column bases shaped, with more segments on what is round; trim with a simple profile and a material of its own; rounded edges, not chamfers. The painting module and worker are ready to take more maps.
 4. Step 3: walls (plaster or stone with real structure, darker toward the floor and into corners, the blind arches' edges as edges).
 5. Not checked: WebGL 1 (the shader avoids WebGL 2 only syntax, but no WebGL 1 device was tried); Firefox and Safari; a real phone.
