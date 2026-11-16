@@ -10,6 +10,7 @@ import {createFigmaObject,createGrimoireObject,createCrystalBallObject,createObs
 import {createShelfSound} from './tools-sound.js';
 import {createFirstPerson} from './first-person.js';
 import {towerLayout} from './room-tower.js';
+import {createFloorSurface} from './room-materials.js';
 
 // Architecture and physical furniture. Portal, orb and HTML reader stay in their
 // own renderers; scene-camera.js gives both branches the same projection.
@@ -84,7 +85,8 @@ if (renderer) {
 
   let seed = 617;
   const random = () => ((seed = Math.imul(seed,1664525)+1013904223 >>> 0) / 4294967296);
-  // Wood grain for the floor, the timber and the chair.
+  // Wood grain for the timber, the chair, the table and the outer door (the
+  // floor has its own: room-materials.js).
   function woodTexture() {
     const image=document.createElement('canvas'); image.width=512; image.height=512;
     const ctx=image.getContext('2d');
@@ -124,7 +126,6 @@ if (renderer) {
   }
   const stoneMap=dressedStone();
   const stone=new THREE.MeshStandardMaterial({color:'#b8ab9a',map:stoneMap,bumpMap:stoneMap,bumpScale:.006,roughness:.96});
-  const wood=new THREE.MeshStandardMaterial({color:'#a89980',map:woodMap,roughness:.94});
   const ceilingMaterial=new THREE.MeshStandardMaterial({color:'#7c756b',map:woodMap,roughness:1});
   const trim=new THREE.MeshStandardMaterial({color:'#969596',roughness:1});
   // The wood texture is itself dark; these tints are multiplied into it, so
@@ -165,7 +166,7 @@ if (renderer) {
   // The lantern under the boss: warm glass, glowing on its own (its light on
   // the room is the lighting pass's to add).
   const lanternGlass=new THREE.MeshStandardMaterial({color:'#ffcf8f',emissive:'#ff8a32',emissiveIntensity:1.25,roughness:.35});
-  const materials=[stone,wood,ceilingMaterial,trim,timber,stairStone,chairWood,velvet,stepStone,architecturalMetal,vaultGlass];
+  const materials=[stone,ceilingMaterial,trim,timber,stairStone,chairWood,velvet,stepStone,architecturalMetal,vaultGlass];
   const textured = materials.map(m=>({map:m.map,color:m.color.clone()}));
   // Pieces sharing a material are merged into one mesh, which keeps the
   // curved shell inside the room's draw-call budget. Stone courses use world
@@ -290,7 +291,13 @@ if (renderer) {
   }
   // Only each board's top face is drawn; the dark substrate shows in the gaps,
   // which is all the board sides ever contributed from standing height.
-  const boards=new THREE.InstancedMesh(new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2),wood,planks.length);
+  // Its material (room-materials.js): oak with relief, every board its own
+  // stretch of grain, rounded at its joints, worn pale and smooth along the
+  // ways people walk, and shaded where walls and column bases stand on it.
+  const floor=createFloorSurface({colour:'#a89980',anisotropy:Math.min(8,renderer.capabilities.getMaxAnisotropy()),
+    extent:{x0:west-T,z0:south-T,x1:east+T,z1:north+T},chamber,tower,stair,paths:view.paths,forward:placement.forward});
+  materials.push(floor.material);textured.push({map:floor.material.map,color:floor.material.color.clone()});
+  const boards=new THREE.InstancedMesh(new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2),floor.material,planks.length);
   boards.name='wooden plank floor';boards.receiveShadow=true;
   const dummy=new THREE.Object3D();
   // Each board's tint follows from where it lies, so a change to the floor
@@ -298,7 +305,7 @@ if (renderer) {
   const tint=(x,z)=>{const s=Math.sin(x*127.1+z*311.7)*43758.5453;return s-Math.floor(s);};
   planks.forEach((p,i)=>{
     dummy.position.set(p.x,0,p.z);dummy.scale.set(p.w,1,p.length);dummy.updateMatrix();
-    boards.setMatrixAt(i,dummy.matrix);boards.setColorAt(i,new THREE.Color().setScalar(.70+tint(p.x,p.z)*.28));
+    boards.setMatrixAt(i,dummy.matrix);boards.setColorAt(i,floor.plankColour(tint(p.x,p.z),tint(p.z+3.1,p.x-1.7)));
   });
   boards.instanceMatrix.needsUpdate=true;shell.add(boards);
   // Stone shell: the chamber's bays, and the tower's round wall from one of
@@ -1794,7 +1801,12 @@ if (renderer) {
     architecture:{get tuning(){return {...architectureTuning};},stats:architecture.stats,
       source:{position:presence.position.toArray(),target:presence.target.position.toArray(),wellHeight:wellY}},
     project(x,y,z){const p=new THREE.Vector3(x,y,z).project(camera);return {x:(p.x+1)*innerWidth/2,y:(1-p.y)*innerHeight/2};},
-    clay(enabled){materials.forEach((m,i)=>{m.map=enabled?null:textured[i].map;if(m===stone)m.bumpMap=enabled?null:stoneMap;m.color.copy(enabled?new THREE.Color('#686460'):textured[i].color);m.needsUpdate=true;});boards.material=wood;invalidate();},
+    clay(enabled){materials.forEach((m,i)=>{m.map=enabled?null:textured[i].map;if(m===stone)m.bumpMap=enabled?null:stoneMap;m.color.copy(enabled?new THREE.Color('#686460'):textured[i].color);m.needsUpdate=true;});invalidate();},
+    // The floor's look (room-materials.js), read or tuned live: wear, contact
+    // and joints, each from 0 (none) through 1 (as designed) and beyond.
+    floor:{stats:floor.stats,get values(){return {wear:floor.look.uWear.value,contact:floor.look.uContact.value,joints:floor.look.uJoints.value};},
+      configure(values={}){for(const [key,uniform] of [['wear',floor.look.uWear],['contact',floor.look.uContact],['joints',floor.look.uJoints]])
+        if(Number.isFinite(values[key])) uniform.value=Math.max(0,values[key]);invalidate();return this.values;}},
     // The room's light balance ("Room lighting balance"), read or tuned live.
     lighting:{get values(){return {...lighting};},configure(values={}) {
       for(const [key,value] of Object.entries(values)) if(Object.hasOwn(lighting,key)&&Number.isFinite(value))
@@ -1871,7 +1883,9 @@ if (renderer) {
           if(v?.isTexture&&!seen.has(v)){seen.add(v);uploads.push([target,v]);}
     });
   }
-  const uploading=(async()=>{for(const [target,texture] of uploads){target.initTexture(texture);await frame();}})();
+  // (The floor's maps are painted in a worker meanwhile, room-materials.js:
+  // nothing is sent before they are in.)
+  const uploading=(async()=>{await floor.settle();for(const [target,texture] of uploads){target.initTexture(texture);await frame();}})();
   // Prime (above), in small batches a frame apart, so no one frame holds
   // the GPU for long: every mesh drawn once into a single pixel by both
   // renderers, the cloth by the room's too. The first full frame then

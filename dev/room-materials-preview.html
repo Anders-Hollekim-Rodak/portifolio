@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Room materials: the painted maps</title>
+<!-- A development aid, not part of the page: the maps room-materials-paint.js
+     paints, as pictures, and how long each takes on the page's own thread.
+     Serve the folder and open dev/room-materials-preview.html. -->
+<style>
+  body{margin:0;background:#15120f;color:#d8ccb8;font:13px system-ui;padding:12px}
+  figure{display:inline-block;margin:0 12px 12px 0;vertical-align:top}
+  figcaption{padding:4px 0}
+  canvas{display:block;background:#000}
+</style>
+<body>
+<script type="module">
+import * as THREE from '../vendor/three/three.module.js';
+import {paint} from '../room-materials-paint.js';
+import {floorGrain, floorPlanSpec} from '../room-materials.js';
+import {createChamber, chamberTuning} from '../room-chamber.js';
+import {towerLayout} from '../room-tower.js';
+const show = (label, data, W, H, scale = 1) => {
+  const c = document.createElement('canvas'); c.width = W; c.height = H; c.style.width = W * scale + 'px';
+  const image = new ImageData(W, H);
+  // Rows as the texture has them: v runs up.
+  for (let y = 0; y < H; y++) image.data.set(data.subarray((H - 1 - y) * W * 4, (H - y) * W * 4), y * W * 4);
+  for (let i = 3; i < image.data.length; i += 4) image.data[i] = 255;
+  c.getContext('2d').putImageData(image, 0, 0);
+  const figure = document.createElement('figure'); figure.append(c, Object.assign(document.createElement('figcaption'), {textContent: label}));
+  document.body.append(figure);
+};
+const grey = (data, channel) => { const out = new Uint8Array(data.length); for (let i = 0; i < out.length; i += 4) out[i] = out[i + 1] = out[i + 2] = data[i + channel]; return out; };
+const chamber = createChamber(THREE, {towerTop: 7}), {tower, stair} = towerLayout(chamberTuning);
+// scene-camera.js's ways (copied: that file needs the page).
+const paths = {trunk: [[0, 5.3], [0, 4.75], [.02, 4.1], [.04, 3.55], [.02, 3.05], [-.2, 2.58], [-.62, 2.0], [-1.05, 1.45], [-1.5, .85], [-1.95, .2], [-2.3, -.35], [-2.6, -.75], [-3.05, -.62], [-3.45, -.25], [-3.7, .2]],
+  fork: 5, branch: [[.12, 2.38], [.6, 2.05], [.98, 1.7], [1.3, 1.25]]};
+const plan = floorPlanSpec({extent: {x0: -5.3, z0: -5.4, x1: 7.9, z1: 5.8}, chamber, tower, stair, paths, forward: -.3});
+const {results, ms} = paint({grain: floorGrain, plan});
+const {W, H} = floorGrain;
+show(`floor grain: colour (${ms.grain.toFixed(0)} ms with its normals)`, results.grain.colour, W, H);
+show('floor grain: openness (alpha)', grey(results.grain.colour, 3), W, H); show('floor grain: normal', results.grain.normal, W, H);
+show(`floor plan: wear (${ms.plan.toFixed(0)} ms with clearance)`, grey(results.plan.data, 0), plan.size, plan.size, 2);
+show('floor plan: clearance', grey(results.plan.data, 1), plan.size, plan.size, 2);
+window.previewReady = true; window.previewTimes = ms;
+</script>
