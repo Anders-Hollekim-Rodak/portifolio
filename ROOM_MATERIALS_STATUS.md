@@ -4,7 +4,7 @@
 
 The brief (the user, 2026-11-16): the room reads as "low poly, early game". Refine what is there into stylised realism: materials that feel real (wood, stone, plaster with structure, joints and wear), a little simplified, warm, not dirty. Forms, places, light and composition stay. Four surfaces, in three steps, each shown to the user before the next: the floor; columns and trim; walls. The nook's objects (`tools-shelf.js`) set the level of detail.
 
-**Stop point:** step 1, the floor, is done and waits for the user's review. Nothing of steps 2 and 3 is started.
+**Where it stands:** step 1, the floor, is done and approved by the user (2026-11-17). Step 2 is in progress.
 
 ## Done: the floor
 
@@ -57,21 +57,22 @@ Frame cost, measured on one page with the old and the new floor material swapped
 
 About half a millisecond more for a full frame, against 16.7 ms for 60 frames a second.
 
-`tests/performance-check.mjs`, baseline (`PORTFOLIO_TEST_ROOT` on `main`) and branch interleaved, two rounds, **on battery** (2026-11-17), so only a rough guide:
+`tests/performance-check.mjs`, baseline (`PORTFOLIO_TEST_ROOT` on `main`) and branch interleaved, two rounds, on mains power (2026-11-17):
 
-| Run | Room ready | Frames a second (entry / chair / shelf) |
-| --- | --- | --- |
-| before 1 | 9.63 s | 60.3 / 60.2 / 60.3 |
-| after 1 | 9.54 s | 44.5 / 60.2 / 59.1 |
-| before 2 | timed out waiting for the room (the baseline's code) | |
-| after 2 | 20.52 s | 59.5 / 60.3 / 60.3 |
+| Run | Room ready (under the profiler) | Frames a second (entry / chair / shelf) | Room draw, CPU per frame |
+| --- | --- | --- | --- |
+| before 1 | 17.86 s | 60.0 / 60.1 / 60.3 | 1.81 / 1.04 / 2.32 ms |
+| after 1 | 10.11 s | 60.2 / 60.2 / 60.3 | 1.67 / 0.86 / 1.33 ms |
+| before 2 | 13.15 s | 60.4 / 60.4 / 60.0 | 1.60 / 1.12 / 1.94 ms |
+| after 2 | 10.84 s | 60.2 / 60.3 / 60.3 | 1.48 / 0.86 / 1.08 ms |
 
-The spread between runs of the same code (9.5 s and 20.5 s, a timeout on the baseline) is larger than any difference between the two. One comparable pair shows the same load time. The 44.5 at the entry appeared in one of two runs. A baseline on mains the day before (`floor-before-1`, 17.96 s under the profiler, 60 frames a second) is from another day and not comparable either. **Still to do: this check on mains power, interleaved, before anything is merged.**
+60 frames a second before and after, 95 % of frames within 17.2 ms in every run. The load is not slower; the spread between runs of the same code is too wide to say more than that. Shader programs 31 in all four; the JS heap holds 5 MB more (the three maps' bytes).
+
+The same check on battery earlier that day was unusable (9.5 s and 20.5 s for the same code, a timeout on the baseline) and is not counted.
 
 ## Remaining
 
-1. The user's review of the floor: is the wear right, is the grain right close up, go on to step 2?
-2. `performance-check` before and after again, on mains (Performance, above).
-3. Step 2: columns, posts, beams and the gallery's front get their own timber (grain that follows each piece, darker in joints, worn edges); column bases shaped, with more segments on what is round; trim with a simple profile and a material of its own; rounded edges, not chamfers. The painting module and worker are ready to take more maps.
-4. Step 3: walls (plaster or stone with real structure, darker toward the floor and into corners, the blind arches' edges as edges).
-5. Not checked: WebGL 1 (the shader avoids WebGL 2 only syntax, but no WebGL 1 device was tried); Firefox and Safari; a real phone.
+1. The floor was reviewed by the user on 2026-11-17: the wear and the grain stay as they are, go on to step 2.
+2. Step 2 (in progress): columns, posts, beams and the gallery's front get their own timber (grain that follows each piece, darker in joints, worn edges); column bases shaped, with more segments on what is round; trim with a simple profile and a material of its own; rounded edges, not chamfers. The painting module and worker are ready to take more maps.
+3. Step 3: walls (plaster or stone with real structure, darker toward the floor and into corners, the blind arches' edges as edges).
+4. Not checked: WebGL 1 (the shader avoids WebGL 2 only syntax, but no WebGL 1 device was tried); Firefox and Safari; a real phone.
