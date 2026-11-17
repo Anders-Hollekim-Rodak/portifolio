@@ -107,6 +107,12 @@ try {
       ['wall-foot',free([1.6,1.0,1.4],[3.6,.3,2.4])],
       // The wall arch over a bay (the blind arch's edge).
       ['wall-arch',free([.5,1.6,.9],[3.7,2.3,2.3])],
+      // A blind arch close, obliquely: its reveal and the edge round into it.
+      ['blind-arch',free([2.0,1.7,2.0],[3.46,2.2,2.3])],
+      // A shelving niche: its reveal and its back.
+      ['niche',free([-1.8,1.5,-.6],[-3.46,1.6,-1.7])],
+      // The upper walls over the gallery, up to the vault.
+      ['upper-wall',free([.4,3.4,.6],[2.6,4.3,-2.2])],
     ],
   };
   const list=[...views.all,...groups.flatMap(group=>views[group]||[])];

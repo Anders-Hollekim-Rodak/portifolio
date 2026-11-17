@@ -10,7 +10,7 @@ import {createFigmaObject,createGrimoireObject,createCrystalBallObject,createObs
 import {createShelfSound} from './tools-sound.js';
 import {createFirstPerson} from './first-person.js';
 import {towerLayout} from './room-tower.js';
-import {createFloorSurface,createRoomSurfaces,settleSurfaces} from './room-materials.js';
+import {createFloorSurface,createRoomSurfaces,createWallSurface,settleSurfaces} from './room-materials.js';
 import {createJoinery,NONE} from './room-joinery.js';
 
 // Architecture and physical furniture. Portal, orb and HTML reader stay in their
@@ -125,8 +125,14 @@ if (renderer) {
     map.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());map.repeat.set(1.3,1.3);
     return map;
   }
+  // (Now the stair's stone only; the walls are plaster, below.)
   const stoneMap=dressedStone();
-  const stone=new THREE.MeshStandardMaterial({color:'#b8ab9a',map:stoneMap,bumpMap:stoneMap,bumpScale:.006,roughness:.96});
+  // The walls: lime plaster (room-materials.js), laid by hand and trowelled,
+  // a little darker toward the floor, into the corners and under the gallery,
+  // the openings' edges rounded over and their reveals darkening inward.
+  const wallSurface=createWallSurface({anisotropy:Math.min(4,renderer.capabilities.getMaxAnisotropy()),colour:'#b8ab9a',
+    tuning:chamberTuning,hw:apothem*Math.tan(Math.PI/sides)});
+  const stone=wallSurface.material;
   const ceilingMaterial=new THREE.MeshStandardMaterial({color:'#7c756b',map:woodMap,roughness:1});
   // Timber, trim and plinth (room-materials.js): dark oak of their own for
   // the columns, the beams, the gallery and the shelves; dressed stone for
@@ -194,10 +200,13 @@ if (renderer) {
     const flat=list.map(g=>g.index?g.toNonIndexed():g),geometry=new THREE.BufferGeometry();
     // (Joinery carries its edges for the surfaces' shader, room-joinery.js;
     // a piece without them among such has none.)
-    const kinds=[['position',3],['normal',3],['uv',2],...(flat.some(g=>g.attributes.edges)?[['edges',4]]:[])];
+    // (and the walls their bay, room-chamber.js: a piece without one is
+    // taken for wall that belongs to no bay, as the tower's is).
+    const extra={edges:[NONE,NONE,NONE,NONE],bayOpen:[0,0,0,0],bayFrame:[0,0,0,3]};
+    const kinds=[['position',3],['normal',3],['uv',2],...Object.keys(extra).filter(key=>flat.some(g=>g.attributes[key])).map(key=>[key,4])];
     for(const [key,size] of kinds) {
       const data=new Float32Array(flat.reduce((n,g)=>n+g.attributes.position.count*size,0));
-      if(key==='edges') data.fill(NONE);
+      if(extra[key]) for(let i=0;i<data.length;i+=4) data.set(extra[key],i);
       let offset=0;
       for(const g of flat){if(g.attributes[key])data.set(g.attributes[key].array,offset);offset+=g.attributes.position.count*size;}
       geometry.setAttribute(key,new THREE.BufferAttribute(data,size));
@@ -276,7 +285,8 @@ if (renderer) {
   const T=chamberTuning.wall,H=chamberTuning.spring;
   // The chamber (room-chamber.js): its twelve bays, their openings and
   // niches, the vault, and the columns and ribs that carry it.
-  const chamber=createChamber(THREE,{towerTop:tower.height});
+  // (The stone frames' widths, room-architecture.js, so the walls know where one covers them.)
+  const chamber=createChamber(THREE,{towerTop:tower.height,frames:{window:architectureTuning.frameWidth,door:architectureTuning.frameWidth*1.18}});
   const aperture=chamber.window,nook=chamber.nook,door=chamber.door;
   // Floor extent along Z at plan position x: the chamber with its recesses
   // and the door's passage, and the tower's circle.
@@ -1817,12 +1827,20 @@ if (renderer) {
     architecture:{get tuning(){return {...architectureTuning};},stats:architecture.stats,
       source:{position:presence.position.toArray(),target:presence.target.position.toArray(),wellHeight:wellY}},
     project(x,y,z){const p=new THREE.Vector3(x,y,z).project(camera);return {x:(p.x+1)*innerWidth/2,y:(1-p.y)*innerHeight/2};},
-    clay(enabled){materials.forEach((m,i)=>{m.map=enabled?null:textured[i].map;if(m===stone)m.bumpMap=enabled?null:stoneMap;m.color.copy(enabled?new THREE.Color('#686460'):textured[i].color);m.needsUpdate=true;});invalidate();},
+    clay(enabled){materials.forEach((m,i)=>{m.map=enabled?null:textured[i].map;m.color.copy(enabled?new THREE.Color('#686460'):textured[i].color);m.needsUpdate=true;});invalidate();},
     // The floor's look (room-materials.js), read or tuned live: wear, contact
     // and joints, each from 0 (none) through 1 (as designed) and beyond.
     // The timber's, the trim's and the plinth's look (room-materials.js),
     // read or tuned live: studyRoom.surfaces.configure('timber',{round:.012}).
     // round, edgeWidth, jointWidth in metres; edgeWear and joint 0 (none) and up.
+    // The walls' look (room-materials.js), read or tuned live:
+    // studyRoom.walls.configure({shade, arris, arrisWear, macro}).
+    walls:{stats:wallSurface.stats,get values(){const look=stone.userData.look;
+        return {shade:look.uWallShade.value,arris:look.uArris.value,arrisWear:look.uArrisWear.value,macro:look.uMacro.value};},
+      configure(values={}){const look=stone.userData.look;
+        for(const [key,name] of [['shade','uWallShade'],['arris','uArris'],['arrisWear','uArrisWear'],['macro','uMacro']])
+          if(Number.isFinite(values[key])) look[name].value=Math.max(0,values[key]);
+        invalidate();return this.values;}},
     surfaces:{stats:surfaces.stats,values(name){const look=surfaces[name]?.userData.look;
         return look&&Object.fromEntries(['round','edgeWear','edgeWidth','joint','jointWidth'].map(key=>[key,look['u'+key[0].toUpperCase()+key.slice(1)].value]));},
       configure(name,values={}){const look=surfaces[name]?.userData.look;if(!look) return null;
@@ -1908,9 +1926,14 @@ if (renderer) {
           if(v?.isTexture&&!seen.has(v)){seen.add(v);uploads.push([target,v]);}
     });
   }
-  // (The surfaces' maps are painted in a worker meanwhile, room-materials.js:
-  // nothing is sent before they are in.)
-  const uploading=(async()=>{await settleSurfaces();for(const [target,texture] of uploads){target.initTexture(texture);await frame();}})();
+  // The surfaces' maps are painted in a worker meanwhile (room-materials.js):
+  // the textures that are ready go first, as before; the painted ones once
+  // they are in (by then the worker has nearly always answered).
+  // (Those are bytes already, nothing to raster: two go in a frame.)
+  const painting=uploads.filter(([,texture])=>texture.isDataTexture&&!texture.image?.data),ready=uploads.filter(entry=>!painting.includes(entry));
+  const send=async list=>{for(let i=0;i<list.length;i++){const [target,texture]=list[i];target.initTexture(texture);
+    if(!(texture.isDataTexture&&list[i+1]?.[1].isDataTexture&&i%2===0)) await frame();}};
+  const uploading=(async()=>{await send(ready);await settleSurfaces();await send(painting);})();
   // Prime (above), in small batches a frame apart, so no one frame holds
   // the GPU for long: every mesh drawn once into a single pixel by both
   // renderers, the cloth by the room's too. The first full frame then

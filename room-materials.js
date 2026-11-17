@@ -152,7 +152,8 @@ export function createFloorSurface({anisotropy = 8, colour = '#ffffff', ...room}
       .replace('#include <color_fragment>', `#include <color_fragment>
       // Metres in from the board's long edges (x) and its ends (y), and a
       // pixel's size on the board: nothing below is drawn finer than that.
-      vec2 boardEdge = vBoardHalf - abs(vBoardAt), boardPixel = max(fwidth(vBoardAt), vec2(1e-5));
+      // (Never below 0: a pixel at the board's very edge may be shaded from just past it.)
+      vec2 boardEdge = max(vBoardHalf - abs(vBoardAt), 0.), boardPixel = max(fwidth(vBoardAt), vec2(1e-5));
       vec4 floorPlan = texture2D(uFloorPlan, vPlanAt);
       // Joints: shade gathers in them, a finger's width in from each edge.
       vec2 jointWidth = max(vec2(.008), boardPixel * 1.1), jointShade = exp(-boardEdge / jointWidth) * (.008 / jointWidth);
@@ -227,6 +228,9 @@ function compileSurface(shader) {
     float freeEdge = min(min(vEdges.x, vEdges.y), min(vEdges.z < 0. ? -vEdges.z : 10., vEdges.w < 0. ? -vEdges.w : 10.));
     float joined = min(vEdges.z < 0. ? 10. : vEdges.z, vEdges.w < 0. ? 10. : vEdges.w);
     float edgePixel = max(fwidth(freeEdge), 1e-5), jointPixel = max(fwidth(joined), 1e-5);
+    // (A pixel at the very edge may be shaded from a point just past it,
+    // where these run negative: taken no nearer than 0.6 pixel.)
+    freeEdge = max(freeEdge, .6 * edgePixel); joined = max(joined, .6 * jointPixel);
     // Never finer than two pixels: further off, wider and fainter, so a worn
     // edge or a seam never breaks into a dotted line.
     float rim = exp(-freeEdge / max(uEdgeWidth, 2. * edgePixel)) * min(1., uEdgeWidth / (2. * edgePixel));
@@ -290,4 +294,155 @@ export function createRoomSurfaces({anisotropy = 4, colours}) {
     timber: surfaceMaterial(colours.timber, timber, {round: .008, edgeWear: .26, edgeWidth: .006, joint: .5, jointWidth: .045, rough: new THREE.Vector2(.62, .96)}),
     trim: surfaceMaterial(colours.trim, stone, {round: .007, edgeWear: .1, edgeWidth: .006, joint: .42, jointWidth: .03, rough: new THREE.Vector2(.8, 1)}),
     plinth: surfaceMaterial(colours.plinth, stone, {round: .006, edgeWear: .08, edgeWidth: .006, joint: .5, jointWidth: .035, rough: new THREE.Vector2(.82, 1)})};
+}
+
+/* ---- The walls: lime plaster. Each piece of wall carries its bay
+   (room-chamber.js): the opening it holds (half-width, sill, shoulder, peak:
+   bayOpen) and the bay itself (its outward direction, the stone frame's
+   width round the opening, and what meets it: bayFrame). From these the
+   shader works out, for each point, where it is on the bay:
+   - on the wall's face, its distance to the opening: the opening's edge is
+     rounded over and a little worn, unless a stone frame covers it, which
+     then shades the wall where it meets it;
+   - in a reveal, how deep into the wall it is: the edge rounds over into it,
+     and it darkens going in, so an arch reads as a cut edge, not a drawn line;
+   - on a niche's back, its distance to the reveals round it: darker into
+     those corners;
+   - everywhere, how close it is to the floor, to the columns at the bay's
+     corners, to the vault above, to the gallery and the cornice: a little
+     darker there, so the wall is built in, not stood against them.
+   Nothing here changes a light: the shade only takes away. */
+// The plaster: a field 2.4 m square; tones keep the old walls' brightness.
+export const wallPlaster = {kind: 'plaster', W: 512, H: 512, seed: 6151, across: 2.4, along: 2.4,
+  tones: [[96, 90, 82], [134, 127, 116]]};
+wallPlaster.pixel = [wallPlaster.across / wallPlaster.W, wallPlaster.along / wallPlaster.H];
+const earlyPlaster = pairOf(wallPlaster, 1);
+
+const WALL_COMMON = `
+  uniform vec4 uChamber;   // apothem, a bay's half-width, the springing, the formeret's rise
+  uniform vec4 uLevels;    // the gallery's underside and floor, the cornice's foot and top
+  uniform float uWallShade, uArris, uArrisWear, uMacro;
+  varying vec3 vPlan, vPlanNormal; varying vec4 vOpen, vBay;
+  // The pointed arch room-chamber.js draws (open: half-width, sill, shoulder, peak):
+  // its height at u from the axis, and its half-width at height y.
+  float wallArchTop(vec4 w, float u) {
+    float t = sqrt(max(0., 1. - abs(u) / w.x)), c = w.z + .6 * (w.w - w.z);
+    return w.z * (1. - t) * (1. - t) + c * 2. * t * (1. - t) + w.w * t * t;
+  }
+  // Its half-width at height y, and how fast that changes with y.
+  vec2 wallArchSide(vec4 w, float y) {
+    if (y <= w.z) return vec2(w.x, 0.);
+    float c = w.z + .6 * (w.w - w.z), a = w.z - 2. * c + w.w, b = 2. * (c - w.z), yy = min(y, w.w);
+    float t = abs(a) < 1e-5 ? (yy - w.z) / b : (-b + sqrt(max(0., b * b - 4. * a * (w.z - yy)))) / (2. * a);
+    return vec2(w.x * (1. - t * t), -2. * w.x * t / max(b + 2. * a * t, 1e-4));
+  }
+  // Distance across the wall's face to an arch's outline from outside it (0
+  // within): the gap across to its side over the side's slope, as to a
+  // straight line there; above the crown, to the crown. It runs on smoothly
+  // everywhere, so the shading never sees an edge where there is none.
+  float wallOutside(vec4 w, float u, float y) {
+    float au = abs(u);
+    if (y < w.y) return au < w.x ? w.y - y : length(vec2(au - w.x, w.y - y));
+    vec2 side = wallArchSide(w, y);
+    float d = (au - side.x) / sqrt(1. + side.y * side.y);
+    if (y > w.w) d = length(vec2(max(d, 0.), y - w.w));
+    return max(d, 0.);
+  }
+  // ... and from inside it, to its sides, its arch and its sill.
+  float wallInside(vec4 w, float u, float y) {
+    vec2 side = wallArchSide(w, y);
+    float d = (side.x - abs(u)) / sqrt(1. + side.y * side.y);
+    return max(min(d, w.y > 0. ? y - w.y : 1e3), 0.);
+  }
+  vec3 wallBent(vec3 at, vec3 n, vec2 slope, float facing) {
+    vec3 sx = dFdx(at), sy = dFdy(at), r1 = cross(sy, n), r2 = cross(n, sx);
+    float det = dot(sx, r1) * facing;
+    return normalize(abs(det) * n - sign(det) * (slope.x * r1 + slope.y * r2));
+  }`;
+
+function compileWall(shader) {
+  Object.assign(shader.uniforms, this.userData.look);
+  shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>
+    attribute vec4 bayOpen, bayFrame; varying vec3 vPlan, vPlanNormal; varying vec4 vOpen, vBay;`)
+    .replace('#include <begin_vertex>', `#include <begin_vertex>
+    vPlan = position; vPlanNormal = normal; vOpen = bayOpen; vBay = bayFrame;`);
+  shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>${WALL_COMMON}`)
+    .replace('#include <color_fragment>', `#include <color_fragment>
+    // Where this point is on its bay: u across it, y up, how deep into the
+    // wall behind its face; which face it is on.
+    vec2 bayOut = vBay.xy, bayRight = vec2(-bayOut.y, bayOut.x);
+    float bayU = dot(vPlan.xz, bayRight), wallY = vPlan.y, intoWall = dot(vPlan.xz, bayOut) - uChamber.x;
+    float facingRoom = -dot(vPlanNormal.xz, bayOut);
+    bool onBay = vBay.w < 2.5 && dot(bayOut, bayOut) > .5;
+    bool onFace = onBay && facingRoom > .7 && intoWall < .01, onBack = onBay && facingRoom > .7 && intoWall >= .01;
+    bool inReveal = onBay && abs(facingRoom) <= .7;
+    float shade = 1.;
+    // Toward the floor, over the plinth (0.14 m).
+    shade *= 1. - .26 * exp(-max(wallY - .14, 0.) / .45);
+    // How far to the opening's edge (rounded and worn on the face and in its
+    // reveal); 10 = none near.
+    float arris = 10.;
+    if (onBay) {
+      // Into the corners where the columns stand, and up under the vault.
+      shade *= 1. - .3 * exp(-max(uChamber.y - abs(bayU), 0.) / .22);
+      vec4 formeret = vec4(uChamber.y, 0., uChamber.z, uChamber.z + uChamber.w);
+      if (abs(bayU) < uChamber.y) shade *= 1. - .3 * exp(-max(wallArchTop(formeret, bayU) - wallY, 0.) / .25);
+      // The gallery (not in the window's bay): under its slab and over its floor.
+      if (vBay.w != 1.) shade *= 1. - .3 * (wallY < uLevels.x ? exp(-(uLevels.x - wallY) / .14) : exp(-max(wallY - uLevels.y, 0.) / .1));
+      // The cornice (not in the window's or the tower's bay).
+      if (vBay.w == 0.) shade *= 1. - .25 * (wallY < uLevels.z ? exp(-(uLevels.z - wallY) / .07) : exp(-max(wallY - uLevels.w, 0.) / .1));
+      if (onFace) {
+        float edge = wallOutside(vOpen, bayU, wallY);
+        if (vBay.z > 0.) shade *= 1. - .3 * exp(-max(edge - vBay.z, 0.) / .05);
+        else arris = edge;
+      }
+      if (inReveal) {
+        // Deeper into the reveal, darker; its edge rounds over from the face.
+        arris = max(intoWall, 0.);
+        shade *= 1. - .38 * smoothstep(0., .3, intoWall);
+      }
+      if (onBack) shade *= (1. - .12) * (1. - .3 * exp(-wallInside(vOpen, bayU, wallY) / .07));
+    }
+    // (A pixel at the very edge may be shaded from a point just past it; it
+    // is taken no nearer than 0.6 pixel, so the edge never sparkles.)
+    float arrisPixel = max(fwidth(arris), 1e-5);
+    arris = max(arris, .6 * arrisPixel);
+    float arrisRim = arris < 5. ? exp(-arris / max(.006, 2. * arrisPixel)) * min(1., .006 / (2. * arrisPixel)) : 0.;
+    // The wall on a larger scale than its map repeats: the lime wash's tone
+    // taken again, broader and turned.
+    #ifdef USE_NORMALMAP
+      float broad = texture2D(normalMap, mat2(.17, .11, -.11, .17) * vNormalMapUv + vec2(.31, .57)).a;
+    #else
+      float broad = .5;
+    #endif
+    diffuseColor.rgb *= mix(1., shade, uWallShade) * (1. + uMacro * (broad - .5)) * (1. + uArrisWear * arrisRim);`)
+    .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+    #ifdef USE_MAP
+      roughnessFactor = sampledDiffuseColor.a * (1. - .15 * arrisRim);
+    #endif`)
+    .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+    if (arris < 5.) {
+      // The opening's edge rounded over (as the timber's, room-joinery.js):
+      // the slope worked out here, the way to the edge from the screen.
+      float radius = max(uArris, arrisPixel * 2.5), turn = clamp(1. - arris / radius, 0., 1.);
+      normal = wallBent(-vViewPosition, normal, vec2(dFdx(arris), dFdy(arris)) * (uArris * turn / radius), faceDirection);
+    }`);
+}
+
+/* The walls' material. tuning: room-chamber.js's chamberTuning; hw: a bay's
+   half-width at the wall's face (chamber.hw). look: live-tunable through
+   material.userData.look (studyRoom.walls): uWallShade (0 none, 1 as
+   designed), uArris (metres), uArrisWear, uMacro. */
+export function createWallSurface({anisotropy = 4, colour, tuning, hw}) {
+  const pair = earlyPlaster, G = tuning.gallery, stats = {textures: 2};
+  pair.map.anisotropy = pair.normalMap.anisotropy = anisotropy;
+  pair.job.answer.then(answer => Object.assign(stats, {worker: answer.worker, ms: answer.ms.maps}));
+  const material = new THREE.MeshStandardMaterial({color: colour, map: pair.map, normalMap: pair.normalMap, roughness: 1});
+  material.userData.look = {
+    uChamber: {value: new THREE.Vector4(tuning.apothem, hw, tuning.spring, tuning.formeret)},
+    // The gallery's underside and floor; the cornice's foot and top (room-chamber.js).
+    uLevels: {value: new THREE.Vector4(G.floor - G.slab, G.floor, tuning.spring - .18, tuning.spring)},
+    uWallShade: {value: 1}, uArris: {value: .014}, uArrisWear: {value: .12}, uMacro: {value: .16}};
+  material.onBeforeCompile = compileWall;
+  return {material, stats};
 }

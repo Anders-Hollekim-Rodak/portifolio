@@ -4,7 +4,7 @@
 
 The brief (the user, 2026-11-16): the room reads as "low poly, early game". Refine what is there into stylised realism: materials that feel real (wood, stone, plaster with structure, joints and wear), a little simplified, warm, not dirty. Forms, places, light and composition stay. Four surfaces, in three steps, each shown to the user before the next: the floor; columns and trim; walls. The nook's objects (`tools-shelf.js`) set the level of detail.
 
-**Where it stands:** step 1, the floor, is done and approved by the user (2026-11-17). Step 2, columns, timber and trim, is done and waits for the user's review (2026-11-17). Step 3, the walls, is not started.
+**Where it stands:** all three steps are done (2026-11-17). Steps 1 and 2 are approved by the user; step 3, the walls, waits for the user's review, with one open question about load time (Remaining, below).
 
 ## Done: the floor
 
@@ -31,19 +31,33 @@ Unchanged: geometry (the same instanced boards, one draw call), every light, sha
 
 Not touched: the vault's cells and boss; the ribs' shape (they share the columns' mesh and so their new timber: asked the user); the lights; the shelves' contents; the portal, the table, the rugs and the banners; the chair (it still has the old shared wood texture); the stair's steps.
 
+## Done: the walls (step 3)
+
+- **Lime plaster** instead of the old "sandpaper" stone: laid by hand (broad, shallow hollows and swells) and trowelled (overlapping, slightly burnished strokes with a soft ridge at their leading edge), in a lime wash of soft clouds, with a few air holes. A 2.4 m field; the shader takes its broad tone again at a larger scale, so it never repeats visibly. Its tones keep the old walls' brightness.
+- **Arches as edges.** Each piece of wall knows its bay (`room-chamber.js`: `bayOpen`, `bayFrame`). From the point's place on the bay the shader works out its distance to the opening's outline (a pointed arch, analytically) or how deep into the reveal it is. The opening's edge is rounded over and a little worn on both sides; the reveal darkens going in; a niche's back is darker, most of all into its corners. The blind arches, the shelving niches, the nook and the tower's mouth now read as cut into the wall, not drawn on it.
+- **Built in.** A little darker toward the floor (above the plinth), into the corners where the columns stand, up under the vault, under the gallery and over its floor, and at the cornice. Where the window's and the door's stone frames lie on the plaster, it darkens against them.
+- **No new geometry, no new light.** The shading only takes away. The walls' shader replaces the old stone one: still 32 programs.
+- Live-tunable: `studyRoom.walls.configure({shade, arris, arrisWear, macro})`.
+- The stair keeps its old dressed stone (`dressedStone` in `room-scene.js`, now the stair's only).
+
+Fixed on the way:
+- The texture uploads no longer all wait for the worker: those that are ready go first, as on `main`, and the painted ones once they are in (two of those a frame, being bytes already). Waiting for all of them had put the uploads after the shaders' compile and made the room about 2 s later.
+- Edges seen at a slant no longer sparkle: a pixel at the very edge can be shaded from a point just past it, so the rounding, the wear and the joints take it no nearer than 0.6 pixel; the floor's joints are never computed below zero.
+
 ## Files
 
 | File | What |
 | --- | --- |
-| `room-materials.js` | New. The floor's material and shader; the shared shader and maps for timber, trim and plinth (`createRoomSurfaces`); asks for every map and hands them over when painted (`settleSurfaces`). |
+| `room-materials.js` | New. The floor's material and shader; the shared shader and maps for timber, trim and plinth (`createRoomSurfaces`); the walls' plaster and shader (`createWallSurface`); asks for every map and hands them over when painted (`settleSurfaces`). |
 | `room-joinery.js` | New. Pieces of joinery as geometry with their grain and edges: sawn beams, shafts, mouldings from a section, turned pieces, tubes, slabs, and dressed and softened stone. |
-| `room-chamber.js` | Its timber, gallery, cornice, plinth, columns, bases and capitals made as joinery (same places and sizes). |
+| `room-chamber.js` | Its timber, gallery, cornice, plinth, columns, bases and capitals made as joinery (same places and sizes); each piece of wall carries its bay (`bayOpen`, `bayFrame`); `frames` option for the stone frames' widths. |
 | `room-architecture.js` | The stone frames carry their edges; their blocks are rounded; the rail's posts have 8 faces. |
-| `room-materials-paint.js` | New. The painting: plain numbers in, bytes out (wood grain, dressed stone, the floor's plan). No three.js, no page. |
+| `room-materials-paint.js` | New. The painting: plain numbers in, bytes out (wood grain, dressed stone, lime plaster, the floor's plan). No three.js, no page. |
 | `room-materials-worker.js` | New. Runs the painting off the page's thread. |
-| `room-scene.js` | The boards, the timber, the trim and the plinth use the new materials (the old wood texture still serves the chair, the table, the door and the tower's roof); the tower's timber made as joinery; texture uploads wait for every map; `studyRoom.floor`, `studyRoom.surfaces`. |
+| `room-scene.js` | The boards, the timber, the trim and the plinth use the new materials (the old wood texture still serves the chair, the table, the door and the tower's roof); the walls are plaster; the tower's timber made as joinery; textures go to the GPU as before, the painted ones once they are in; `studyRoom.floor`, `studyRoom.surfaces`, `studyRoom.walls`. |
 | `index.html` | Preloads `room-materials.js`, `room-materials-paint.js` and `room-joinery.js`. |
 | `tests/room-materials-shots.mjs` | New. Still frames from fixed angles for before/after (`--views=floor,timber,walls`, `--format=webp`), with each frame's mean brightness. |
+| `tests/architecture-check.mjs`, `tests/portal-check.mjs` | The architecture's triangle budget 2,700 to 2,900 (the round handrail; the user's choice). |
 | `dev/room-materials-preview.html` | New, a development aid: the painted maps as pictures. |
 
 ## How the maps are made
@@ -71,6 +85,32 @@ On battery, 2026-11-17 (the suites pass on battery; timings there are noisy):
 - Frame cost, old and new materials (floor, timber, trim, plinth) swapped on one page, two samples each: entry 7.9 / 9.7 ms against 9.2 / 9.7 ms, chair 8.7 / 9.1 against 8.2 / 9.0, shelf 7.4 / 7.2 against 7.5 / 8.1. Up to 1.3 ms more, often none.
 - Before and after from eleven angles: https://claude.ai/artifact/4Kh8KEaLr5tUx4kxbXUnQ4 (private to the user). Regenerate with `node tests/room-materials-shots.mjs --out=after --views=timber`.
 - **To do:** `performance-check` before and after on mains power, interleaved, as for the floor.
+
+### Step 3, checked
+
+On mains power, 2026-11-17:
+
+- Passed: the same nine suites, on the final code. The room's budget check: 35 draw calls, 47,233 triangles from the chair (budget 50,000; the walls add none). The architecture's budget: 2,862 of 2,900.
+- Shader programs 32 (`main`: 31); textures 42 (`main`: 33).
+- Mean brightness of the whole frame against `main`: entry +1.2 %, chair +1.5 %, shelf -1.9 %; the close views of the walls -2.2 % to +3.1 %.
+- Frame cost, all the new surfaces against the old materials on one page, two samples: entry 10.2 / 10.6 ms against 10.8 / 10.9; chair 11.6 / 11.9 against 10.7 / 10.3; shelf 9.3 / 8.7 against 7.7 / 7.7. The walls cost nothing: the old stone's bump map was dearer.
+- Before and after from nine angles: https://claude.ai/artifact/DrRXUhWnAZVHJeFF8V2x5K (private to the user). Regenerate with `node tests/room-materials-shots.mjs --out=after --views=walls`.
+
+## Performance, all three steps against `main`
+
+On mains power, 2026-11-17, `main` and this branch alternating:
+
+| Measure | `main` | This branch |
+| --- | --- | --- |
+| `performance-check` (profiler on, cache off), room ready, median | 9.8 s (10 runs: 8.8-12.0, one 22.9) | 11.0 s (6 runs: 10.1-12.7) |
+| The same conditions, my own timeline, median | 10.4 s (6 runs) | 11.0 s (6 runs) |
+| Without the profiler, median | 10.6 s (9 runs) | 10.7 s (9 runs) |
+| Frames a second, entry / chair / shelf | 60 / 60 / 60 | 60 / 60 / 60 (95 % within 17.2 ms) |
+| JS heap after load | 21 MB | 32-33 MB |
+
+Where the time goes (timelines and CPU profiles): the build and the shaders' compile take as long as on `main`; the painting is all in the worker. The difference is the GPU taking in the new textures (about 9 MB with their mipmaps) just before the room's first frame: three.js's first look at each program then waits for the GPU. Under the profiler that shows as about 1.2 s more; without it, hardly at all. The heap holds the maps' bytes (kept for a lost GPU context).
+
+Four `performance-check` runs before the upload fix (uploads waiting for the worker) are not counted: 9.8, 17.0, 10.7 and 12.4 s.
 
 ## Performance (step 1, the floor)
 
@@ -101,6 +141,5 @@ The same check on battery earlier that day was unusable (9.5 s and 20.5 s for th
 
 1. The floor was reviewed by the user on 2026-11-17: the wear and the grain stay as they are, go on to step 2.
 2. Step 2 is done. The user's answers (2026-11-17): the timber stays as it is; the vault's ribs keep the columns' new timber; the stair's handrail is round (8 faces; the architecture's budget in `architecture-check` and `portal-check` raised from 2,700 to 2,900 triangles, now 2,862); go on to the walls.
-   Still owed: `performance-check` before and after step 2 on mains power.
-3. Step 3: walls (plaster or stone with real structure, darker toward the floor and into corners, the blind arches' edges as edges).
+3. Step 3 (walls) is done. Asked the user (2026-11-17): is the plaster right (seen in the lamps' light, but calm); is about 1 s more load time under `performance-check` acceptable, or should the maps be made smaller (recommended: try halving the floor's and the plaster's, then measure again)?
 4. Not checked: WebGL 1 (the shader avoids WebGL 2 only syntax, but no WebGL 1 device was tried); Firefox and Safari; a real phone.

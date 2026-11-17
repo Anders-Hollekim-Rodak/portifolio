@@ -239,7 +239,67 @@ export function paintStone({W, H, seed, tones, pixel, relief = .0012, pits = 260
   return {colour: new Uint8Array(colour.buffer), normal: normalsOf(height, W, H, relief / (2 * pixel[0]), relief / (2 * pixel[1]))};
 }
 
-const painters = {wood: paintWood, floorPlan: paintFloorPlan, stone: paintStone};
+/* Lime plaster, W by H pixels; it wraps both ways. Returns {colour, normal}:
+   the colour's alpha is how open the surface is (0 smooth .. 1 rough), the
+   normal map's alpha the broad tone (0..1), for the shader to vary the wall
+   on a larger scale than the map repeats.
+   - Laid by hand: broad, shallow hollows and swells.
+   - Trowelled: overlapping strokes, each a smoothed patch, a little burnished
+     (smoother, a shade darker), with a slight ridge left at its leading edge.
+   - Lime wash in soft clouds; a faint mottle; a few air holes. No grit.
+   tones: [dark, pale], sRGB 0..255; pixel: [across, up] metres;
+   relief: metres of height per unit of field; strokes: per square metre. */
+export function paintPlaster({W, H, seed, tones, pixel, relief = .0015, strokes = 160, holes = 30}) {
+  const random = randomSource(seed), n = W * H, wide = W * pixel[0], high = H * pixel[1];
+  const cells = (metres, k) => Math.max(2, Math.round(k * metres));
+  // Tone: clouds about 50 cm and 15 cm across; mottle about 2.5 cm.
+  const tone = addNoise(addNoise(new Float32Array(n), W, H, cells(wide, 2), cells(high, 2), .6, random), W, H, cells(wide, 7), cells(high, 7), .4, random);
+  const mottle = addNoise(new Float32Array(n), W, H, cells(wide, 40), cells(high, 40), 1, random);
+  // The coat's own unevenness: hollows and swells some 30 and 10 cm across.
+  const swell = addNoise(addNoise(new Float32Array(n), W, H, cells(wide, 3), cells(high, 3), .7, random), W, H, cells(wide, 10), cells(high, 10), .3, random);
+  // The trowel. Later strokes flatten what earlier ones left.
+  const trowel = new Float32Array(n), burnish = new Float32Array(n);
+  for (let k = 0, count = Math.round(strokes * wide * high); k < count; k++) {
+    const cx = random() * W, cy = random() * H, angle = random() * Math.PI, ca = Math.cos(angle), sa = Math.sin(angle);
+    const length = (.16 + .26 * random()) / pixel[0], breadth = (.05 + .07 * random()) / pixel[0], bend = (random() - .5) * 2.2 / length;
+    const level = (random() - .5) * .4, reach = Math.ceil(length / 2 + breadth);
+    for (let dy = -reach; dy <= reach; dy++) for (let dx = -reach; dx <= reach; dx++) {
+      // Along the stroke (a) and across it (b), the stroke curving a little as a trowel swings.
+      const a = dx * ca + dy * sa, b = -dx * sa + dy * ca - bend * a * a;
+      const q = (2 * a / length) ** 2 + (2 * b / breadth) ** 2; if (q >= 1) continue;
+      const i = ((Math.round(cy) + dy) % H + H) % H * W + ((Math.round(cx) + dx) % W + W) % W;
+      // Full in its middle, easing out over most of its width: no hard rim.
+      const flat = Math.min(1, Math.max(0, (1 - q) / .75)), f = flat * flat * (3 - 2 * flat);
+      // The ridge: plaster pushed up along the stroke's leading edge.
+      const ridge = a > 0 ? Math.exp(-(((1 - q) / .1) ** 2)) * .3 : 0;
+      trowel[i] += (level - trowel[i]) * f * .85 + ridge;
+      if (f > burnish[i]) burnish[i] = f;
+    }
+  }
+  // Air holes: a few small soft hollows.
+  const hole = new Float32Array(n);
+  for (let k = 0, count = Math.round(holes * wide * high); k < count; k++) {
+    const cx = random() * W, cy = random() * H, r = .7 + random() * 1.6, deep = .4 + .6 * random(), reach = Math.ceil(r + 1);
+    for (let dy = -reach; dy <= reach; dy++) for (let dx = -reach; dx <= reach; dx++) {
+      const q = Math.hypot(dx, dy) / r; if (q >= 1.3) continue;
+      const i = ((Math.round(cy) + dy + H) % H) * W + (Math.round(cx) + dx + W) % W, v = deep * Math.max(0, 1 - q * q / 1.69);
+      if (v > hole[i]) hole[i] = v;
+    }
+  }
+  const colour = new Uint8ClampedArray(n * 4), height = new Float32Array(n);
+  const [[dr, dg, db], [pr, pg, pb]] = tones;
+  for (let i = 0, k = 0; i < n; i++, k += 4) {
+    const v = Math.min(1, Math.max(0, .5 + tone[i] * .4 + mottle[i] * .04 - burnish[i] * .02)) * (1 - .25 * hole[i]);
+    colour[k] = dr + (pr - dr) * v; colour[k + 1] = dg + (pg - dg) * v; colour[k + 2] = db + (pb - db) * v;
+    colour[k + 3] = (.92 - .2 * burnish[i] + mottle[i] * .04 + hole[i] * .1) * 255;
+    height[i] = swell[i] * 1.4 + trowel[i] * .35 + mottle[i] * .02 - hole[i] * .8;
+  }
+  const normal = normalsOf(height, W, H, relief / (2 * pixel[0]), relief / (2 * pixel[1]));
+  for (let i = 0; i < n; i++) normal[i * 4 + 3] = Math.min(1, Math.max(0, .5 + tone[i] * .8)) * 255;
+  return {colour: new Uint8Array(colour.buffer), normal};
+}
+
+const painters = {wood: paintWood, floorPlan: paintFloorPlan, stone: paintStone, plaster: paintPlaster};
 // Paints a set of jobs ({name: {kind, ...its settings}}). Returns the results
 // by name, how long each took, and their buffers (to hand over, not copy).
 export function paint(jobs) {

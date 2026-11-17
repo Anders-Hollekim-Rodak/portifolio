@@ -49,7 +49,9 @@ export const chamberTuning = {
 const KINDS = ['window', 'blind', 'tower', 'shelves', 'blind', 'blind', 'door', 'shelves', 'shelves', 'nook', 'shelves', 'blind'];
 
 // towerTop: how high the tower's bay wall rises behind the vault (the tower's roof).
-export function createChamber(THREE, {towerTop = 7} = {}, tuning = chamberTuning) {
+// frames: the stone frames' widths round openings that have one, by kind
+// (room-architecture.js), so the walls' shader knows where a frame covers them.
+export function createChamber(THREE, {towerTop = 7, frames = {}} = {}, tuning = chamberTuning) {
   const {sides, apothem: A, wall: T, spring: Hs, formeret: F, apex: Ha, boss: rb} = tuning;
   const step = 2 * Math.PI / sides, half = step / 2;
   const hw = A * Math.tan(half);                 // a bay's half-width at the wall's face
@@ -119,6 +121,22 @@ export function createChamber(THREE, {towerTop = 7} = {}, tuning = chamberTuning
   const bay = kind => bays.find(b => b.kind === kind);
 
   const walls = [], plinth = [], timber = [], metal = [];
+  // What the walls' shader (room-materials.js) needs of the bay a piece of
+  // wall belongs to. bayOpen: its opening (half-width, sill, shoulder, peak).
+  // bayFrame: its outward direction (plan x, z), the stone frame's width
+  // round the opening (0: none), and what meets the wall there: 0 the
+  // gallery and the cornice, 1 neither (the window's bay, which rises
+  // through both), 2 the gallery only (the tower's mouth).
+  const MEETS = {window: 1, tower: 2};
+  function onBay(g, b) {
+    const n = g.attributes.position.count, w = b.open, open = new Float32Array(n * 4), frame = new Float32Array(n * 4);
+    for (let i = 0; i < n; i++) {
+      open.set([w.halfWidth, w.sill, w.shoulder, w.peak], i * 4);
+      frame.set([b.out.x, b.out.z, frames[b.kind] ?? 0, MEETS[b.kind] ?? 0], i * 4);
+    }
+    g.setAttribute('bayOpen', new THREE.BufferAttribute(open, 4)); g.setAttribute('bayFrame', new THREE.BufferAttribute(frame, 4));
+    return g;
+  }
   const place = (geometry, b) => geometry.applyMatrix4(b.matrix);
   const box = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
   // A sawn piece of timber (room-joinery.js beam), placed like a box.
@@ -171,15 +189,15 @@ export function createChamber(THREE, {towerTop = 7} = {}, tuning = chamberTuning
     return shape;
   }
   for (const b of bays) {
-    const w = b.open, wallGeometry = place(new THREE.ExtrudeGeometry(wallShape(b, b.kind === 'tower' ? towerTop : 0),
-      {depth: T, bevelEnabled: false, curveSegments: 14}), b);
+    const w = b.open, wallGeometry = onBay(place(new THREE.ExtrudeGeometry(wallShape(b, b.kind === 'tower' ? towerTop : 0),
+      {depth: T, bevelEnabled: false, curveSegments: 14}), b), b);
     // The window's wall stays one extrusion with one hole (portal-check).
     if (b.kind === 'window') windowWall = wallGeometry; else walls.push(wallGeometry);
     const depth = w.depth ?? (b.kind === 'window' || b.kind === 'tower' ? T : null);
     if (b.kind === 'window' || b.kind === 'tower') continue;
     // Deeper than the wall: its reveals run on behind it.
     // (The door's passage is dark slate beyond the wall, like its floor.)
-    if (depth > T) (b.kind === 'door' ? passage : walls).push(place(reveal(outline(w), T, depth, w.sill > 0), b));
+    if (depth > T) (b.kind === 'door' ? passage : walls).push(onBay(place(reveal(outline(w), T, depth, w.sill > 0), b), b));
     // Shallower: a back closes it inside the wall.
     // At the door's passage the far end is the outer door: dark oak
     // (doorLeaf, its own darker timber), with three iron straps. Elsewhere
@@ -187,7 +205,7 @@ export function createChamber(THREE, {towerTop = 7} = {}, tuning = chamberTuning
     if (b.kind === 'door') {
       doorLeaf = place(panel(w, depth), b);
       for (const y of [.35, 1.0, 1.65]) doorStraps.push(place(box(2 * archHalfAt(w, y + .03) - .04, .035, .012, 0, y, depth - .008), b));
-    } else walls.push(place(panel(w, depth), b));
+    } else walls.push(onBay(place(panel(w, depth), b), b));
   }
 
   // ---- What the bays hold.
