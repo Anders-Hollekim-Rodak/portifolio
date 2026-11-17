@@ -34,7 +34,8 @@ const doorMap=(u,y,depth)=>new THREE.Vector3(door.x-u,y,4-depth);
 const input={stair,tower,aperture,windowMap,door,doorMap,lancets},before=JSON.stringify(input);
 const model=createRoomArchitecture(THREE,input);
 assert.equal(JSON.stringify(input),before,'Architecture dressings never mutate the plan or flight dimensions');
-assert.ok(model.stats.triangles<2700,'Bounded detail budget');
+// (2,900 since 2026-11-17: the stair's handrail is round, eight faces, the user's choice.)
+assert.ok(model.stats.triangles<2900,'Bounded detail budget');
 assert.equal(model.stats.profiles,5);assert.equal(model.stats.windows,4);assert.equal(model.stats.railBays,7);
 for(const key of ['stone','metal','handrail']) for(const name of ['position','normal','uv']) {
   assert.ok(Array.from(model[key].attributes[name].array).every(Number.isFinite),key+' has finite '+name);

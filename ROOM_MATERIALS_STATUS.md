@@ -25,7 +25,7 @@ Unchanged: geometry (the same instanced boards, one draw call), every light, sha
 - **Soft edges, no chamfers.** Every piece of joinery carries the distance to its edges (`room-joinery.js`). The one shader for timber, trim and plinth rounds the free edges in the shading (a quarter round of about 8 mm, never finer than two pixels), wears them a little paler and smoother, and darkens where a piece meets another or the wall. No triangles are added for it.
 - **Mouldings with a profile.** The plinth (stone: upright face, shoulder, cove), the cornice under the vault (roll, cove, rounded fascia) and the gallery's front (bead and cove, seen from behind too) are mouldings, each within the size of the plain block it replaces.
 - **Stone frames.** The frames of the great window, the door and the lancets, the sills, the impost stones and the stair's newel are dressed stone (pale, faintly uneven, a few small pits), their facets shaded as the curved surfaces they stand for. Their arrises are rounded; they darken where they meet the wall and in the frame's inner corner.
-- **Small rounds.** The gallery's and the tower's balusters are closed at their ends; the stair rail's bronze posts have 8 faces (were 6).
+- **Small rounds.** The gallery's and the tower's balusters are closed at their ends; the stair rail's bronze posts have 8 faces (were 6), and its handrail 8 (was 5).
 - **The floor against the plinth.** The floor's contact shade now follows the plinth's face, and is stored signed and finer near the walls: the jagged dark line along the walls' foot is gone.
 - Live-tunable: `studyRoom.surfaces.configure('timber' | 'trim' | 'plinth', {round, edgeWear, edgeWidth, joint, jointWidth})`.
 
@@ -65,7 +65,7 @@ On mains power, 2026-11-16, headless Chrome on the GPU:
 
 On battery, 2026-11-17 (the suites pass on battery; timings there are noisy):
 
-- Passed: the same nine suites as for the floor. The room's budget check (`portal-check --environment-only`): 35 draw calls, 47,065 triangles from the chair (was 42,641; the budget is 50,000). The architecture's own budget: 2,694 triangles (its limit 2,700).
+- Passed: the same nine suites as for the floor. The room's budget check (`portal-check --environment-only`): 35 draw calls, 47,065 triangles from the chair (was 42,641; the budget is 50,000). The architecture's own budget: 2,694 triangles (its limit was 2,700; with the round handrail 2,862 against 2,900).
 - Shader programs 31 to 32 (one shared by timber, trim and plinth); textures 36 to 40.
 - Mean brightness of the whole frame against `main`: entry +2.7 % (the floor's share 1.8), chair +1.3 %, shelf +0.4 %; the close views of timber and trim -1.7 % to +2.5 %.
 - Frame cost, old and new materials (floor, timber, trim, plinth) swapped on one page, two samples each: entry 7.9 / 9.7 ms against 9.2 / 9.7 ms, chair 8.7 / 9.1 against 8.2 / 9.0, shelf 7.4 / 7.2 against 7.5 / 8.1. Up to 1.3 ms more, often none.
@@ -100,7 +100,7 @@ The same check on battery earlier that day was unusable (9.5 s and 20.5 s for th
 ## Remaining
 
 1. The floor was reviewed by the user on 2026-11-17: the wear and the grain stay as they are, go on to step 2.
-2. Step 2 is done. Asked the user (2026-11-17): is the timber dark and warm enough; may the vault's ribs keep the columns' new timber; may the stair's handrail be rounded (it is still five-sided close up: rounding it needs the architecture's test budget raised from 2,700 to 2,900 triangles); go on to the walls?
-   Also: `performance-check` before and after step 2 on mains power.
+2. Step 2 is done. The user's answers (2026-11-17): the timber stays as it is; the vault's ribs keep the columns' new timber; the stair's handrail is round (8 faces; the architecture's budget in `architecture-check` and `portal-check` raised from 2,700 to 2,900 triangles, now 2,862); go on to the walls.
+   Still owed: `performance-check` before and after step 2 on mains power.
 3. Step 3: walls (plaster or stone with real structure, darker toward the floor and into corners, the blind arches' edges as edges).
 4. Not checked: WebGL 1 (the shader avoids WebGL 2 only syntax, but no WebGL 1 device was tried); Firefox and Safari; a real phone.

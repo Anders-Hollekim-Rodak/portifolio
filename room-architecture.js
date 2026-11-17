@@ -137,7 +137,7 @@ export function createRoomArchitecture(THREE,{aperture,windowMap,door,doorMap,to
   // existing helical nosing line, never changing a tread or the flight path.
   const railAt=i=>at(stair.from-i*stair.step,stair.inner+.03,tread(i)+tuning.railHeight);
   const helix=new THREE.Curve();helix.getPoint=(t,target=new THREE.Vector3())=>target.copy(railAt(t*stair.count));
-  const handrail=new THREE.TubeGeometry(helix,28,tuning.railRadius,5,false);
+  const handrail=new THREE.TubeGeometry(helix,28,tuning.railRadius,8,false);
   const fascia=[];
   for(let j=0;j<stair.count*2;j++) {
     const a=j/2,b=(j+1)/2;

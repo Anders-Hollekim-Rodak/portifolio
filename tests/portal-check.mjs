@@ -311,7 +311,7 @@ try {
           valid:['stone trim','gothic bronze tracery','spiral stair'].every(name=>Array.from(s.getObjectByName(name).geometry.attributes.position.array).every(Number.isFinite))};
       })()`);
       assert.equal(architecture.stats.windows,4);assert.equal(architecture.stats.profiles,5);assert.equal(architecture.stats.railBays,7);
-      assert.ok(architecture.bronze&&architecture.valid&&architecture.stats.triangles<2700,'Batched architectural dressings stay bounded');
+      assert.ok(architecture.bronze&&architecture.valid&&architecture.stats.triangles<2900,'Batched architectural dressings stay bounded');
       assert.ok(architecture.source.position[1]>architecture.source.wellHeight&&architecture.source.target[1]<1,'Green light originates above the landing and falls into the stairwell');
       assert.ok(architecture.angle<.4&&architecture.reach<1.6,'Upper light is a narrow source, not a room-wide wash');
       // The lighting pass moved the nook's lamp into its droplets and the
