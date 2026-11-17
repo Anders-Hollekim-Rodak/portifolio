@@ -6,8 +6,8 @@
    (room-materials-worker.js) while the page builds the room, so loading does
    not wait for them; without a worker, or if it is late, the page paints
    them itself. Nothing is downloaded. A surface's `ready` resolves once its
-   maps are in; room-scene.js calls settle() before it sends any texture to
-   the GPU.
+   maps are in; room-scene.js waits for settleSurfaces() before it sends any
+   texture to the GPU.
 
    The floor is the room's plank floor (one instanced mesh, one draw call, as
    before). Its boards share one field of grain; each takes its own stretch
@@ -32,6 +32,7 @@ try {
 // Paints jobs (room-materials-paint.js paint) in the worker. `answer`
 // resolves with {results, ms, worker, waited}; settle() is for when the maps
 // are needed now: it paints them on the page unless the worker has answered.
+const asked = [];
 function painted(jobs) {
   const began = performance.now();
   let finish, done = false;
@@ -39,7 +40,16 @@ function painted(jobs) {
   const here = () => { if (done) return; const {results, ms} = paint(jobs); finish(results, ms, false); };
   if (worker) { const id = ++serial; waiting.set(id, data => data ? finish(data.results, data.ms, true) : here()); worker.postMessage({id, jobs}); }
   else Promise.resolve().then(here);
-  return {answer, settle: () => { here(); return answer; }};
+  const job = {answer, settle: () => { here(); return answer; }};
+  asked.push(job); return job;
+}
+/* For when the maps are needed (room-scene.js, before it sends textures to
+   the GPU): a moment for answers already on their way to land, then the page
+   paints whatever is still missing itself. Resolves once every map is in. */
+export function settleSurfaces() {
+  const all = () => Promise.all(asked.map(job => job.answer));
+  return Promise.race([all(), new Promise(resolve => setTimeout(resolve, 30))])
+    .then(() => { for (const job of asked) job.settle(); return all(); }).then(() => new Promise(resolve => setTimeout(resolve)));
 }
 
 // A texture of bytes to come, as the room's maps are sampled; fill() gives it them.
@@ -78,7 +88,10 @@ export function floorPlanSpec({extent, chamber, tower, stair, paths, forward, ru
     [win.out.x * (A - .75), win.out.z * (A - .75), .9, .45], [...plan(paths.trunk[1]), .8, .4]];
   return {kind: 'floorPlan', extent, size, seed: 2903, range: CLEAR_RANGE, lanes, spots, room: {
     apothem: A, sides: chamber.tuning.sides, wall: chamber.tuning.wall, half: chamber.hw, columnAt: chamber.corner - .07, base: .23, mouth: mouth.k,
-    bays: chamber.bays.map(b => ({ox: b.out.x, oz: b.out.z, rx: b.right.x, rz: b.right.z, open: b.kind === 'tower' || b.kind === 'door' ? b.open.halfWidth : 0})),
+    // The plinth (room-chamber.js) stands 35 mm out, broken where an opening comes down to the floor.
+    plinth: .035,
+    bays: chamber.bays.map(b => ({ox: b.out.x, oz: b.out.z, rx: b.right.x, rz: b.right.z, open: b.kind === 'tower' || b.kind === 'door' ? b.open.halfWidth : 0,
+      bare: b.open.sill === 0 ? b.open.halfWidth : 0})),
     tower: {x: tower.x, z: tower.z, r: tower.r, mouthDirection: tower.mouthDirection, mouthWidth: tower.mouthWidth},
     stair: {from: stair.from, step: stair.step, inner: stair.inner}}};
 }
@@ -91,7 +104,7 @@ const floorGrainPainted = painted({grain: floorGrain});
 
 /* The plank floor's material, for room-scene.js's instanced boards (a unit
    square each, scaled to its width and length and laid in the plan).
-   Returns {material, plankColour(tint, hue), look, ready, settle, stats}.
+   Returns {material, plankColour(tint, hue), look, ready, stats}.
    look: the material's own uniforms, live-tunable (studyRoom.floor):
      uWear      how far the walked ways are worn pale and smooth (0 none)
      uContact   how dark the floor goes where it meets walls and bases
@@ -105,11 +118,6 @@ export function createFloorSurface({anisotropy = 8, colour = '#ffffff', ...room}
     fill(map, grain.results.grain.colour); fill(normalMap, grain.results.grain.normal); fill(planMap, plan.results.plan.data);
     Object.assign(stats, {worker: grain.worker && plan.worker, ms: {...grain.ms, ...plan.ms}, waited: {grain: grain.waited, plan: plan.waited}});
   });
-  // For when the maps are needed (room-scene.js, before it sends textures to
-  // the GPU): a moment for an answer already on its way to land, then the
-  // page paints whatever is still missing itself.
-  const settle = () => Promise.race([ready, new Promise(resolve => setTimeout(resolve, 30))])
-    .then(() => { floorGrainPainted.settle(); planPainted.settle(); return ready; });
   const look = {uFloorPlan: {value: planMap}, uFloorFrame: {value: new THREE.Vector4(x0, z0, 1 / (x1 - x0), 1 / (z1 - z0))},
     uWear: {value: 1}, uContact: {value: 1}, uJoints: {value: 1}};
   const material = new THREE.MeshStandardMaterial({color: colour, map, normalMap, roughness: 1});
@@ -154,7 +162,9 @@ export function createFloorSurface({anisotropy = 8, colour = '#ffffff', ...room}
       float boardWear = smoothstep(.2, .8, floorPlan.r * (.72 + .56 * vBoardSeed.x) + (vBoardSeed.y - .5) * .1) * (1. - .6 * joint) * uWear;
       // Contact: a close, dark line where something stands on the floor, and
       // a wide, soft shade about it.
-      float clearance = floorPlan.g * floorPlan.g * ${CLEAR_RANGE.toFixed(2)};
+      // (Close by, the fine signed distance; further off, the coarse one.)
+      float nearClear = floorPlan.b * .36 - .06;
+      float clearance = nearClear < .28 ? max(nearClear, 0.) : floorPlan.g * floorPlan.g * ${CLEAR_RANGE.toFixed(2)};
       float contactShade = 1. - uContact * (.34 * exp(-clearance / .045) + .26 * exp(-clearance / .34));
       diffuseColor.rgb *= mix(vec3(1.), vec3(1.22, 1.2, 1.15), boardWear) * (1. - .5 * joint * uJoints) * contactShade;`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
@@ -182,5 +192,102 @@ export function createFloorSurface({anisotropy = 8, colour = '#ffffff', ...room}
     const v = .68 + tint * .32, h = (hue - .5) * 2;
     return target.setRGB(v * (1 + .07 * h), v * (1 - .012 * h), v * (1 - .1 * h));
   };
-  return {material, plankColour, look, ready, settle, stats};
+  return {material, plankColour, look, ready, stats};
+}
+
+/* ---- Timber and trim. The columns, beams, gallery and shelves are dark oak
+   of their own, apart from the floor's; the window's, the door's and the
+   lancets' frames and the plinth at the walls' foot are dressed stone. Each
+   piece comes from room-joinery.js with its texture coordinates in metres
+   and its `edges`, which the one shader they all share turns into:
+   - rounded edges: the surface turns softly over each free edge, in the
+     shading (no chamfers, no triangles), never finer than a pixel;
+   - worn edges: a little paler and smoother along them;
+   - joints: darker where a piece meets another, or the wall behind it.
+   One function for every such material, so they share one program. */
+function compileSurface(shader) {
+  Object.assign(shader.uniforms, this.userData.look);
+  shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>
+    attribute vec4 edges; varying vec4 vEdges;`)
+    .replace('#include <begin_vertex>', `#include <begin_vertex>
+    vEdges = edges;`);
+  shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
+    uniform float uRound, uEdgeWear, uEdgeWidth, uJoint, uJointWidth; uniform vec2 uRough;
+    varying vec4 vEdges;
+    // The surface's direction where its height changes across the screen
+    // (as a bump map bends it).
+    vec3 surfaceBent(vec3 at, vec3 n, vec2 slope, float facing) {
+      vec3 sx = dFdx(at), sy = dFdy(at), r1 = cross(sy, n), r2 = cross(n, sx);
+      float det = dot(sx, r1) * facing;
+      return normalize(abs(det) * n - sign(det) * (slope.x * r1 + slope.y * r2));
+    }`)
+    .replace('#include <color_fragment>', `#include <color_fragment>
+    // Metres to the nearest free edge and to the nearest joint, and a pixel's
+    // size there. (z and w are joints, or free edges given as negatives.)
+    float freeEdge = min(min(vEdges.x, vEdges.y), min(vEdges.z < 0. ? -vEdges.z : 10., vEdges.w < 0. ? -vEdges.w : 10.));
+    float joined = min(vEdges.z < 0. ? 10. : vEdges.z, vEdges.w < 0. ? 10. : vEdges.w);
+    float edgePixel = max(fwidth(freeEdge), 1e-5), jointPixel = max(fwidth(joined), 1e-5);
+    // Never finer than two pixels: further off, wider and fainter, so a worn
+    // edge or a seam never breaks into a dotted line.
+    float rim = exp(-freeEdge / max(uEdgeWidth, 2. * edgePixel)) * min(1., uEdgeWidth / (2. * edgePixel));
+    float seam = exp(-joined / max(uJointWidth, 2. * jointPixel)) * min(1., uJointWidth / (2. * jointPixel));
+    diffuseColor.rgb *= (1. + uEdgeWear * rim) * (1. - uJoint * seam);`)
+    .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+    #ifdef USE_MAP
+      float openGrain = sampledDiffuseColor.a;
+    #else
+      float openGrain = .5;
+    #endif
+    roughnessFactor = mix(uRough.x, uRough.y, openGrain) * (1. - .25 * rim);`)
+    .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+    {
+      // A quarter round of radius uRound: level at that distance in, turned
+      // 45 degrees at the edge itself, where the next face takes over. Its
+      // slope toward the edge is worked out here; only the way to the edge
+      // comes from the screen (the distance is linear over each face, so
+      // that is exact, also on a face seen nearly edge on).
+      float radius = max(uRound, edgePixel * 2.5), turn = clamp(1. - freeEdge / radius, 0., 1.);
+      float slope = uRound * turn / radius;
+      normal = surfaceBent(-vViewPosition, normal, vec2(dFdx(freeEdge), dFdy(freeEdge)) * slope, faceDirection);
+    }`);
+}
+function surfaceMaterial(colour, maps, look) {
+  const material = new THREE.MeshStandardMaterial({color: colour, map: maps.map, normalMap: maps.normalMap, roughness: 1});
+  material.userData.look = Object.fromEntries(Object.entries(look).map(([name, value]) => ['u' + name[0].toUpperCase() + name.slice(1), {value}]));
+  material.onBeforeCompile = compileSurface;
+  return material;
+}
+// A painted pair of maps (colour with openness, normals) laid by the metre.
+function pairOf(spec, anisotropy) {
+  const map = dataTexture(spec.W, spec.H, {srgb: true, anisotropy}), normalMap = dataTexture(spec.W, spec.H, {anisotropy});
+  map.repeat.set(1 / spec.across, 1 / spec.along); normalMap.repeat.copy(map.repeat);
+  const job = painted({maps: spec});
+  job.answer.then(({results}) => { fill(map, results.maps.colour); fill(normalMap, results.maps.normal); });
+  return {map, normalMap, job};
+}
+// The timber's oak: darker and straighter than the floor's, a field 0.55 m
+// across and 2.6 m along the grain. The trim's stone: 0.8 m square.
+// Its tones keep the old shared wood's mean brightness, a little warmer.
+export const timberGrain = {kind: 'wood', W: 256, H: 1024, seed: 4409, across: .55, along: 2.6, flames: 1, relief: .0011,
+  tones: [[100, 74, 50], [150, 116, 80], [56, 38, 24]]};
+export const trimStone = {kind: 'stone', W: 256, H: 256, seed: 9127, across: .8, along: .8, pits: 110,
+  tones: [[150, 146, 138], [212, 207, 196]]};
+for (const spec of [timberGrain, trimStone]) spec.pixel = [spec.across / spec.W, spec.along / spec.H];
+// Asked for as the module loads, like the floor's grain: they need nothing
+// from the room. (Their sampling's anisotropy is set when the room asks.)
+const early = {timber: pairOf(timberGrain, 1), stone: pairOf(trimStone, 1)};
+
+/* The room's timber, trim and plinth materials. colours: each material's
+   own tint over its map ({timber, trim, plinth}).
+   Each material's look is live-tunable through material.userData.look
+   (studyRoom.surfaces): uRound (metres), uEdgeWear, uEdgeWidth (metres),
+   uJoint, uJointWidth (metres), uRough (smooth, open). */
+export function createRoomSurfaces({anisotropy = 4, colours}) {
+  const {timber, stone} = early, stats = {textures: 4};
+  for (const pair of [timber, stone]) pair.map.anisotropy = pair.normalMap.anisotropy = anisotropy;
+  Promise.all([timber.job.answer, stone.job.answer]).then(([a, b]) => Object.assign(stats, {worker: a.worker && b.worker, ms: {timber: a.ms.maps, stone: b.ms.maps}}));
+  return {stats,
+    timber: surfaceMaterial(colours.timber, timber, {round: .008, edgeWear: .26, edgeWidth: .006, joint: .5, jointWidth: .045, rough: new THREE.Vector2(.62, .96)}),
+    trim: surfaceMaterial(colours.trim, stone, {round: .007, edgeWear: .1, edgeWidth: .006, joint: .42, jointWidth: .03, rough: new THREE.Vector2(.8, 1)}),
+    plinth: surfaceMaterial(colours.plinth, stone, {round: .006, edgeWear: .08, edgeWidth: .006, joint: .5, jointWidth: .035, rough: new THREE.Vector2(.82, 1)})};
 }

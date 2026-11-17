@@ -10,7 +10,8 @@ import {createFigmaObject,createGrimoireObject,createCrystalBallObject,createObs
 import {createShelfSound} from './tools-sound.js';
 import {createFirstPerson} from './first-person.js';
 import {towerLayout} from './room-tower.js';
-import {createFloorSurface} from './room-materials.js';
+import {createFloorSurface,createRoomSurfaces,settleSurfaces} from './room-materials.js';
+import {createJoinery,NONE} from './room-joinery.js';
 
 // Architecture and physical furniture. Portal, orb and HTML reader stay in their
 // own renderers; scene-camera.js gives both branches the same projection.
@@ -127,11 +128,18 @@ if (renderer) {
   const stoneMap=dressedStone();
   const stone=new THREE.MeshStandardMaterial({color:'#b8ab9a',map:stoneMap,bumpMap:stoneMap,bumpScale:.006,roughness:.96});
   const ceilingMaterial=new THREE.MeshStandardMaterial({color:'#7c756b',map:woodMap,roughness:1});
-  const trim=new THREE.MeshStandardMaterial({color:'#969596',roughness:1});
-  // The wood texture is itself dark; these tints are multiplied into it, so
-  // they stay light enough for shadowed timber to read as wood, not black.
-  const timber=new THREE.MeshStandardMaterial({color:'#a8876a',map:woodMap,roughness:.95});
-  const stairStone=new THREE.MeshStandardMaterial({color:'#7f786e',roughness:.95});
+  // Timber, trim and plinth (room-materials.js): dark oak of their own for
+  // the columns, the beams, the gallery and the shelves; dressed stone for
+  // the frames of the window, the door and the lancets, and for the plinth
+  // at the walls' foot. One shader for the three: it rounds each piece's
+  // free edges, wears them a little and shades its joints. The tints are
+  // multiplied into the painted maps, light enough for shadowed timber to
+  // read as wood, not black.
+  const surfaces=createRoomSurfaces({anisotropy:Math.min(4,renderer.capabilities.getMaxAnisotropy()),
+    colours:{timber:'#a8876a',trim:'#d2d1d3',plinth:'#b5b0a8'}});
+  const {timber,trim}=surfaces,stairStone=surfaces.plinth;
+  // Its pieces (room-joinery.js): each with its grain's way and its edges.
+  const joinery=createJoinery(THREE);
   // The stair's own stone, as dark as the walls' once its texture is multiplied in.
   const stepStone=new THREE.MeshStandardMaterial({color:'#d6d1c8',map:stoneMap,roughness:.9});
   const architecturalMetal=new THREE.MeshStandardMaterial({color:'#827354',metalness:.48,roughness:.58});
@@ -184,10 +192,14 @@ if (renderer) {
   }
   function merge(list) {
     const flat=list.map(g=>g.index?g.toNonIndexed():g),geometry=new THREE.BufferGeometry();
-    for(const [key,size] of [['position',3],['normal',3],['uv',2]]) {
-      const data=new Float32Array(flat.reduce((n,g)=>n+g.attributes[key].array.length,0));
+    // (Joinery carries its edges for the surfaces' shader, room-joinery.js;
+    // a piece without them among such has none.)
+    const kinds=[['position',3],['normal',3],['uv',2],...(flat.some(g=>g.attributes.edges)?[['edges',4]]:[])];
+    for(const [key,size] of kinds) {
+      const data=new Float32Array(flat.reduce((n,g)=>n+g.attributes.position.count*size,0));
+      if(key==='edges') data.fill(NONE);
       let offset=0;
-      for(const g of flat){data.set(g.attributes[key].array,offset);offset+=g.attributes[key].array.length;}
+      for(const g of flat){if(g.attributes[key])data.set(g.attributes[key].array,offset);offset+=g.attributes.position.count*size;}
       geometry.setAttribute(key,new THREE.BufferAttribute(data,size));
     }
     return geometry;
@@ -336,12 +348,12 @@ if (renderer) {
     // A straight run of balustrade from a to b (plan [x, z]).
     const run=(a,b,posts=true)=>{
       const length=Math.hypot(b[0]-a[0],b[1]-a[1]),angle=Math.atan2(b[0]-a[0],b[1]-a[1]),mx=(a[0]+b[0])/2,mz=(a[1]+b[1])/2;
-      const bar=(height,width,at)=>new THREE.BoxGeometry(width,height,length+.02).rotateY(angle).translate(mx,at,mz);
+      const bar=(height,width,at)=>joinery.beam(width,height,length+.02).rotateY(angle).translate(mx,at,mz);
       towerRail.timber.push(bar(.06,.07,y+G.rail-.03),bar(.05,.07,y+.1));
       towerRail.metal.push(bar(.012,.075,y+G.rail+.006));
       if(posts) for(let i=1,n=Math.max(1,Math.round(length/.22));i<=n;i++) {
         const t=i/n,x=a[0]+(b[0]-a[0])*t,z=a[1]+(b[1]-a[1])*t;
-        towerRail.timber.push(new THREE.CylinderGeometry(.018,.022,G.rail-.14,6).translate(x,y+.07+(G.rail-.14)/2,z));
+        towerRail.timber.push(joinery.shaft(.018,.022,G.rail-.14,6,{open:false}).translate(x,y+.07+(G.rail-.14)/2,z));
       }
     };
     // Round the shaft, in short straight runs, with a fascia under the edge.
@@ -351,14 +363,16 @@ if (renderer) {
       const p=radialAt(a,ring.edge),q=radialAt(b,ring.edge);
       run(p,q);
       const fp=radialAt(a,well.inner+.01),fq=radialAt(b,well.inner+.01),length=Math.hypot(fq[0]-fp[0],fq[1]-fp[1]);
-      towerRail.timber.push(new THREE.BoxGeometry(.05,.2,length+.02).rotateY(Math.atan2(fq[0]-fp[0],fq[1]-fp[1]))
+      towerRail.timber.push(joinery.beam(.05,.2,length+.02).rotateY(Math.atan2(fq[0]-fp[0],fq[1]-fp[1]))
         .translate((fp[0]+fq[0])/2,y-.12-.1,(fp[1]+fq[1])/2));
     }
     // Across the ring where the stairwell opens, from the shaft to the wall.
     run(radialAt(well.to,ring.edge),radialAt(well.to,tower.r-.02));
   }
   const architecture=createRoomArchitecture(THREE,{aperture,windowMap:aperture.map,door,doorMap:door.map,tower,lancets,stair});
-  mesh('stone trim',architecture.stone,trim);
+  // (The carved frames are flat facets: shaded as the curved surfaces they
+  // stand for, and their stone laid by the metre; room-joinery.js.)
+  mesh('stone trim',joinery.soften(joinery.dressed(architecture.stone)),trim);
   mesh('gothic bronze tracery',merge([architecture.metal,...chamber.parts.metal,...towerRail.metal]),architecturalMetal);
 
   // The spiral stair, in its own dressed stone. Each step is one solid from the
@@ -436,14 +450,15 @@ if (renderer) {
   // shelving niches (room-chamber.js), radial rafters under the tower's roof,
   // the stair's handrail and the tower's upper floor.
   const beamParts=[...chamber.parts.timber,
-    new THREE.CylinderGeometry(.12,.12,.16,12).translate(tower.x,tower.height-.08,tower.z)];
+    joinery.shaft(.12,.12,.16,12,{open:false}).translate(tower.x,tower.height-.08,tower.z)];
   for(let i=0;i<6;i++) {
     const a=i*Math.PI/3+.3,[x,z]=radialAt(a,(tower.r+T/2)/2);
-    beamParts.push(block(tower.r+T/2,.12,.1,x,tower.height-.06,z,-a));
+    beamParts.push(joinery.beam(tower.r+T/2,.12,.1).rotateY(-a).translate(x,tower.height-.06,z));
   }
   // The warm handrail follows the same helix; its stone foot and open bronze
   // pointed bays are batched with the matching window dressings above.
-  beamParts.push(architecture.handrail);
+  beamParts.push(joinery.tube(architecture.handrail,architectureTuning.railRadius,
+    stair.count*Math.hypot(stair.step*(stair.inner+.03),stair.rise)));
   // The upper floor (the ring above), one riser above the last step. Over
   // the flight it is open from where a head would meet it, so the stair
   // visibly arrives at another level; through the mouth it reaches the
@@ -460,8 +475,8 @@ if (renderer) {
     upper.lineTo(well.inner*Math.cos(ring.end),well.inner*Math.sin(ring.end));
     upper.absarc(0,0,well.inner,ring.end,ring.start,true);
     upper.closePath();
-    beamParts.push(new THREE.ExtrudeGeometry(upper,{depth:.12,bevelEnabled:false,curveSegments:32})
-      .rotateX(Math.PI/2).translate(tower.x,ring.y,tower.z));
+    beamParts.push(joinery.slab(new THREE.ExtrudeGeometry(upper,{depth:.12,bevelEnabled:false,curveSegments:32})
+      .rotateX(Math.PI/2).translate(tower.x,ring.y,tower.z)));
   }
   beamParts.push(...towerRail.timber);
   mesh('timber beams',merge(beamParts),timber);
@@ -485,7 +500,8 @@ if (renderer) {
   // more loading, measured. Merged they share the room's own programs.)
   for(const [name,parts,material] of [['columns and ribs',chamber.frame.geometry,timber],['capitals and bases',chamber.frame.caps,architecturalMetal]]) {
     const one=merge(parts);
-    mesh(name,merge(chamber.frame.instances.map(matrix=>one.clone().applyMatrix4(matrix))),material);
+    // (Each corner's timber takes its own stretch of the grain.)
+    mesh(name,merge(chamber.frame.instances.map((matrix,k)=>joinery.shifted(one.clone().applyMatrix4(matrix),k*.173,k*.619))),material);
   }
   // Warm glass that glows on its own: the vault's lantern, the sconces'
   // chimneys and the candles' flames (room-chamber.js), one draw call.
@@ -1804,6 +1820,15 @@ if (renderer) {
     clay(enabled){materials.forEach((m,i)=>{m.map=enabled?null:textured[i].map;if(m===stone)m.bumpMap=enabled?null:stoneMap;m.color.copy(enabled?new THREE.Color('#686460'):textured[i].color);m.needsUpdate=true;});invalidate();},
     // The floor's look (room-materials.js), read or tuned live: wear, contact
     // and joints, each from 0 (none) through 1 (as designed) and beyond.
+    // The timber's, the trim's and the plinth's look (room-materials.js),
+    // read or tuned live: studyRoom.surfaces.configure('timber',{round:.012}).
+    // round, edgeWidth, jointWidth in metres; edgeWear and joint 0 (none) and up.
+    surfaces:{stats:surfaces.stats,values(name){const look=surfaces[name]?.userData.look;
+        return look&&Object.fromEntries(['round','edgeWear','edgeWidth','joint','jointWidth'].map(key=>[key,look['u'+key[0].toUpperCase()+key.slice(1)].value]));},
+      configure(name,values={}){const look=surfaces[name]?.userData.look;if(!look) return null;
+        for(const [key,value] of Object.entries(values)){const uniform=look['u'+key[0].toUpperCase()+key.slice(1)];
+          if(uniform&&Number.isFinite(value)) uniform.value=Math.max(0,value);}
+        invalidate();return this.values(name);}},
     floor:{stats:floor.stats,get values(){return {wear:floor.look.uWear.value,contact:floor.look.uContact.value,joints:floor.look.uJoints.value};},
       configure(values={}){for(const [key,uniform] of [['wear',floor.look.uWear],['contact',floor.look.uContact],['joints',floor.look.uJoints]])
         if(Number.isFinite(values[key])) uniform.value=Math.max(0,values[key]);invalidate();return this.values;}},
@@ -1883,9 +1908,9 @@ if (renderer) {
           if(v?.isTexture&&!seen.has(v)){seen.add(v);uploads.push([target,v]);}
     });
   }
-  // (The floor's maps are painted in a worker meanwhile, room-materials.js:
+  // (The surfaces' maps are painted in a worker meanwhile, room-materials.js:
   // nothing is sent before they are in.)
-  const uploading=(async()=>{await floor.settle();for(const [target,texture] of uploads){target.initTexture(texture);await frame();}})();
+  const uploading=(async()=>{await settleSurfaces();for(const [target,texture] of uploads){target.initTexture(texture);await frame();}})();
   // Prime (above), in small batches a frame apart, so no one frame holds
   // the GPU for long: every mesh drawn once into a single pixel by both
   // renderers, the cloth by the room's too. The first full frame then

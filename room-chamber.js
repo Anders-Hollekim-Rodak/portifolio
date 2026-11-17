@@ -19,7 +19,13 @@
    Geometry only. room-scene.js owns the materials, the tower and its stair,
    the lights and everything that moves. The pieces come grouped by material.
    One bay's columns, ribs and caps are built once and repeated round the
-   room (frame.instances: one placement per corner). */
+   room (frame.instances: one placement per corner).
+
+   Timber and trim are made as joinery (room-joinery.js): each piece carries
+   its grain's direction and its edges for the surfaces' shader
+   (room-materials.js). What is round is round here: shafts and turned bases,
+   made only where they show (their backs stand in the wall). */
+import {createJoinery} from './room-joinery.js';
 
 export const chamberTuning = {
   sides: 12, apothem: 4.0, wall: .35,
@@ -115,6 +121,9 @@ export function createChamber(THREE, {towerTop = 7} = {}, tuning = chamberTuning
   const walls = [], plinth = [], timber = [], metal = [];
   const place = (geometry, b) => geometry.applyMatrix4(b.matrix);
   const box = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
+  // A sawn piece of timber (room-joinery.js beam), placed like a box.
+  const J = createJoinery(THREE);
+  const wood = (w, h, d, x, y, z, options) => J.beam(w, h, d, options).translate(x, y, z);
   // A strip of faces along an outline from local depth z0 to z1, facing in.
   function reveal(points, z0, z1, closed) {
     const cx = points.reduce((n, p) => n + p[0], 0) / points.length, cy = points.reduce((n, p) => n + p[1], 0) / points.length;
@@ -187,31 +196,44 @@ export function createChamber(THREE, {towerTop = 7} = {}, tuning = chamberTuning
   const nook = bay('nook'), nookOpen = nook.open, nookWidth = 2 * nookOpen.halfWidth - .02;
   const nookDesk = .74, nookShelf = 1.42;
   timber.push(
-    place(box(nookWidth, .045, nookOpen.depth + .07, 0, nookDesk - .0225, nookOpen.depth / 2 - .035), nook),
-    place(box(nookWidth, .09, .03, 0, nookDesk - .09, -.055), nook),
-    place(box(nookWidth, .035, .26, 0, nookShelf, nookOpen.depth - .13), nook),
-    place(box(2 * archHalfAt(nookOpen, 2.02) - .03, .035, .24, 0, 1.98, nookOpen.depth - .12), nook));
-  // Shelving niches: a closed cabinet below, open shelves up into the arch.
+    place(wood(nookWidth, .045, nookOpen.depth + .07, 0, nookDesk - .0225, nookOpen.depth / 2 - .035), nook),
+    place(wood(nookWidth, .09, .03, 0, nookDesk - .09, -.055), nook),
+    place(wood(nookWidth, .035, .26, 0, nookShelf, nookOpen.depth - .13), nook),
+    place(wood(2 * archHalfAt(nookOpen, 2.02) - .03, .035, .24, 0, 1.98, nookOpen.depth - .12), nook));
+  // Shelving niches: a closed cabinet below (its front in upright boards),
+  // open shelves up into the arch.
   for (const b of bays.filter(b => b.kind === 'shelves')) {
     const w = b.open, width = 2 * w.halfWidth - .02;
-    timber.push(place(box(width, .86, .03, 0, .43, .045), b), place(box(width, .04, w.depth - .02, 0, .88, w.depth / 2), b));
-    for (const y of [1.34, 1.8]) timber.push(place(box(width, .035, w.depth - .03, 0, y, w.depth / 2 + .01), b));
+    timber.push(place(wood(width, .86, .03, 0, .43, .045, {grain: 1}), b), place(wood(width, .04, w.depth - .02, 0, .88, w.depth / 2), b));
+    for (const y of [1.34, 1.8]) timber.push(place(wood(width, .035, w.depth - .03, 0, y, w.depth / 2 + .01), b));
     // The top shelf meets the arch where it narrows.
     const y = 2.22;
-    timber.push(place(box(2 * archHalfAt(w, y + .04) - .03, .035, w.depth - .03, 0, y, w.depth / 2 + .01), b));
+    timber.push(place(wood(2 * archHalfAt(w, y + .04) - .03, .035, w.depth - .03, 0, y, w.depth / 2 + .01), b));
   }
 
   // ---- Trim. A cornice runs round at the springing, broken only where the
   // window and the tower's mouth rise through it; a stone plinth runs round
   // the floor, broken by every opening that comes down to it.
+  // Both are mouldings (room-joinery.js): a section [out from the wall, up],
+  // from the foot round to the head, run along the bay. Their sizes are the
+  // plain blocks' they replace: the cornice 0.10 out and 0.18 high, the
+  // plinth 0.035 out and 0.14 high.
+  // The cornice, from under the springing: a roll and a fillet, a cove out
+  // to the fascia, the fascia's top eased over.
+  const corniceSection = [[0, -.18], [.028, -.18], [.038, -.17], [.038, -.148, 'crisp'], [.05, -.126], [.076, -.108],
+    [.094, -.1, 'crisp'], [.1, -.092], [.1, -.022], [.093, -.006], [.08, 0], [0, 0]];
+  // The plinth, from the floor: an upright face, a shoulder and a cove in, a
+  // small step and a rounded top against the wall.
+  const plinthSection = [[.035, 0, 'crisp'], [.035, .094], [.031, .107], [.022, .116], [.015, .121, 'crisp'], [.015, .129], [.01, .137], [0, .14]];
   for (const b of bays) {
     const w = b.open, rising = w.peak > Hs - .1, gap = rising ? w.halfWidth + .2 : 0;
     const pieces = rising ? [[-hw, -gap], [gap, hw]] : [[-hw, hw]];
+    // (An end beside a rising opening shows; the others stand behind the columns.)
     if (b.kind !== 'tower') for (const [a, z] of pieces) if (z - a > .05)
-      timber.push(place(box(z - a, .13, .1, (a + z) / 2, Hs - .065, -.05), b), place(box(z - a, .05, .06, (a + z) / 2, Hs - .155, -.03), b));
+      timber.push(place(J.moulding(corniceSection, z - a, {caps: [rising && a > 0, rising && z < 0]}).translate((a + z) / 2, Hs, 0), b));
     const floorGap = w.sill === 0 ? w.halfWidth : 0;
     for (const [a, z] of floorGap ? [[-hw, -floorGap], [floorGap, hw]] : [[-hw, hw]]) if (z - a > .05)
-      plinth.push(place(box(z - a, .14, .035, (a + z) / 2, .07, -.0175), b));
+      plinth.push(place(J.moulding(plinthSection, z - a, {caps: [!!floorGap && a > 0, !!floorGap && z < 0]}).translate((a + z) / 2, 0, 0), b));
   }
 
   // ---- The gallery. Over every bay but the window's: a timber floor from
@@ -224,22 +246,29 @@ export function createChamber(THREE, {towerTop = 7} = {}, tuning = chamberTuning
   const galleryFloor = () => {
     const shape = new THREE.Shape().moveTo(-hw, 0);
     shape.lineTo(hw, 0); shape.lineTo(innerHalf, G.depth); shape.lineTo(-innerHalf, G.depth); shape.closePath();
-    // Shape (x, d) extruded upward: d runs into the room (local -z).
-    return new THREE.ExtrudeGeometry(shape, {depth: G.slab, bevelEnabled: false})
-      .applyMatrix4(new THREE.Matrix4().makeBasis(v3(1, 0, 0), v3(0, 0, -1), v3(0, 1, 0))).translate(0, G.floor - G.slab, 0);
+    // Shape (x, d) extruded upward: d runs into the room (local -z). Its
+    // boards' grain runs along the bay.
+    return J.slab(new THREE.ExtrudeGeometry(shape, {depth: G.slab, bevelEnabled: false})
+      .applyMatrix4(new THREE.Matrix4().makeBasis(v3(1, 0, 0), v3(0, 0, -1), v3(0, 1, 0))).translate(0, G.floor - G.slab, 0));
   };
-  const rail = (length, height, y, d) => box(length, height, .07, 0, y, -d);
+  const rail = (length, height, y, d) => wood(length, height, .07, 0, y, -d);
+  // The gallery's front: a moulded board (0.07 out, 0.2 high, as the plain
+  // one it replaces) hanging under the edge: its lower edge rounded, a cove
+  // and a bead across its face. It is seen from behind too, under the gallery.
+  const fasciaSection = [[0, 0], [.05, 0], [.064, .007], [.07, .02], [.07, .064, 'crisp'], [.061, .074], [.057, .088, 'crisp'],
+    [.057, .152, 'crisp'], [.064, .162], [.07, .174], [.07, .2, 'crisp'], [0, .2]];
   for (const b of bays) {
     if (b.kind === 'window') continue;
     timber.push(place(galleryFloor(), b));
     // Along the open edge: the fascia under it, the rails and balusters on it.
-    timber.push(place(rail(2 * innerHalf, .2, G.floor - G.slab - .02, G.depth - .02), b),
+    timber.push(place(J.moulding(fasciaSection, 2 * innerHalf, {contact: [false, false], back: true}).translate(0, G.floor - G.slab - .12, -(G.depth - .055)), b),
       place(rail(2 * innerHalf + .02, .06, G.floor + G.rail - .03, G.depth - .05), b),
       place(rail(2 * innerHalf, .05, G.floor + .1, G.depth - .05), b));
     const posts = Math.max(3, Math.round(2 * innerHalf / .22));
     for (let i = 0; i <= posts; i++) {
       const x = -innerHalf + 2 * innerHalf * i / posts;
-      timber.push(place(new THREE.CylinderGeometry(.018, .022, G.rail - .14, 6).translate(x, G.floor + .07 + (G.rail - .14) / 2, -(G.depth - .05)), b));
+      // (Turned balusters, closed: their tops show just under the rail.)
+      timber.push(place(J.shaft(.018, .022, G.rail - .14, 6, {open: false}).translate(x, G.floor + .07 + (G.rail - .14) / 2, -(G.depth - .05)), b));
     }
     metal.push(place(box(2 * innerHalf + .02, .012, .075, 0, G.floor + G.rail + .006, -(G.depth - .05)), b));
     // Beside the window the balustrade turns back to the wall.
@@ -249,10 +278,10 @@ export function createChamber(THREE, {towerTop = 7} = {}, tuning = chamberTuning
       const from = v3(side * innerHalf, 0, -(G.depth - .05)), to = v3(side * hw, 0, 0), length = from.distanceTo(to);
       const angle = Math.atan2(to.x - from.x, to.z - from.z), mid = from.clone().add(to).multiplyScalar(.5);
       for (const [height, y] of [[.06, G.floor + G.rail - .03], [.05, G.floor + .1]])
-        timber.push(place(new THREE.BoxGeometry(.07, height, length).rotateY(angle).translate(mid.x, y, mid.z), b));
+        timber.push(place(J.beam(.07, height, length).rotateY(angle).translate(mid.x, y, mid.z), b));
       for (let i = 1; i < 5; i++) {
         const p = from.clone().lerp(to, i / 5);
-        timber.push(place(new THREE.CylinderGeometry(.018, .022, G.rail - .14, 6).translate(p.x, G.floor + .07 + (G.rail - .14) / 2, p.z), b));
+        timber.push(place(J.shaft(.018, .022, G.rail - .14, 6, {open: false}).translate(p.x, G.floor + .07 + (G.rail - .14) / 2, p.z), b));
       }
     }
   }
@@ -265,13 +294,29 @@ export function createChamber(THREE, {towerTop = 7} = {}, tuning = chamberTuning
   const columnAt = (r, along) => radial.clone().multiplyScalar(r).addScaledVector(tangent, along);
   const base = .28, capital = Hs - .26;
   const frame = [], caps = [];
-  const shaft = (r, at, top = capital) => new THREE.CylinderGeometry(r, r, top - base, 10).translate(at.x, (top + base) / 2, at.z);
-  frame.push(shaft(.12, columnAt(Rc - .08, 0)), shaft(.055, columnAt(Rc - .05, .15)), shaft(.055, columnAt(Rc - .05, -.15)));
+  // Round enough to read as round from anywhere in the room (the old ones'
+  // facets showed): the great shaft in 24 faces, the slim ones in 10, closed
+  // above where they pass the capital. They are whole: beside the tower's
+  // mouth and the niches, their backs can be seen.
+  const shaft = (r, at, segments, part) => J.shaft(r, r, capital - base, segments, part).translate(at.x, (capital + base) / 2, at.z);
+  frame.push(shaft(.12, columnAt(Rc - .08, 0), 24),
+    shaft(.055, columnAt(Rc - .05, .15), 10, {open: false}), shaft(.055, columnAt(Rc - .05, -.15), 10, {open: false}));
   {
     const at = columnAt(Rc - .07, 0);
-    caps.push(new THREE.CylinderGeometry(.2, .23, base, 8).translate(at.x, base / 2, at.z),
-      new THREE.CylinderGeometry(.21, .13, .2, 10).translate(at.x, capital + .1, at.z),
-      new THREE.BoxGeometry(.46, .06, .46).rotateY(-cornerAngle).translate(at.x, capital + .23, at.z));
+    // The base, turned: a plinth block, a torus, a hollow (scotia) and a
+    // smaller torus up to the neck the shafts stand on, within the plain
+    // drum it replaces (0.23 at the foot, 0.2 at the top, 0.28 high). The
+    // capital's bell flares in a curve to the abacus, closed underneath
+    // round the shaft; the abacus is a slab with its edges rounded over.
+    const baseSection = [[.23, 0], [.23, .06], [.222, .068], [.226, .094], [.212, .122], [.192, .14], [.19, .166], [.207, .198], [.2, .232], [.2, base], [.001, base]];
+    const bellSection = [[.115, 0], [.13, 0], [.136, .06], [.162, .14], [.21, .2]];
+    const square = new THREE.Shape().moveTo(-.215, -.215).lineTo(.215, -.215).lineTo(.215, .215).lineTo(-.215, .215).closePath();
+    const abacus = J.soften(new THREE.ExtrudeGeometry(square, {depth: .03, bevelEnabled: true, bevelThickness: .015, bevelSize: .015, bevelSegments: 2, steps: 1}));
+    // (14 and 12 faces round: no facet shows from the floor, and the room
+    // keeps within its triangle budget.)
+    caps.push(J.turned(baseSection, 14).translate(at.x, 0, at.z),
+      J.turned(bellSection, 12).translate(at.x, capital, at.z),
+      abacus.rotateX(-Math.PI / 2).rotateY(-cornerAngle).translate(at.x, capital + .215, at.z));
   }
   // The diagonal rib, from the capital to the boss: vertical where it springs,
   // level where it meets the crown.
@@ -280,19 +325,20 @@ export function createChamber(THREE, {towerTop = 7} = {}, tuning = chamberTuning
     return v3(cc * radius, Hs + (Ha - Hs) * Math.sin(s * Math.PI / 2), cs * radius);
   };
   const ribCurve = new THREE.CatmullRomCurve3(Array.from({length: 17}, (_, i) => ribPoint(i / 16, Rc - .07)));
-  frame.push(new THREE.TubeGeometry(ribCurve, 28, tuning.rib, 6, false));
+  frame.push(J.tube(new THREE.TubeGeometry(ribCurve, 28, tuning.rib, 6, false), tuning.rib, ribCurve.getLength()));
   // Bay 0's wall rib, a little proud of the wall, along the arch its wall rises into.
   const b0 = bays[0];
   const wallRib = new THREE.CatmullRomCurve3(Array.from({length: 21}, (_, i) => {
     const u = -hw + 2 * hw * i / 20;
     return b0.map(u, archTop(formeret, u), .04);
   }));
-  frame.push(new THREE.TubeGeometry(wallRib, 24, tuning.wallRib, 5, false));
+  frame.push(J.tube(new THREE.TubeGeometry(wallRib, 24, tuning.wallRib, 5, false), tuning.wallRib, wallRib.getLength()));
   // The beam under the gallery at this corner, from the wall to its open
   // edge, along the line between the bays.
   {
     const along = Rc - (Rc - inner / Math.cos(half)) / 2, length = Rc - inner / Math.cos(half);
-    frame.push(new THREE.BoxGeometry(.16, .22, length).rotateY(Math.atan2(cc, cs))
+    // (Its inner end is free, under the gallery's edge; its outer end meets the wall.)
+    frame.push(J.beam(.16, .22, length, {ends: ['round', true]}).rotateY(Math.atan2(cc, cs))
       .translate(cc * along, G.floor - G.slab - .11, cs * along));
   }
   const instances = Array.from({length: sides}, (_, k) => new THREE.Matrix4().makeRotationY(-k * step));

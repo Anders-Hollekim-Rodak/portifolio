@@ -117,9 +117,12 @@ export function paintWood({W, H, seed, tones, pixel, relief = .0009, flames = 2}
    red:   wear, where people walk: the given ways (lanes: points, width in
           metres, weight) and where they stop (spots: x, z, radius, weight),
           unevenly, in patches a few boards wide.
-   green: how far it is to whatever stands on the floor (walls, column bases,
-          the stair's foot), as sqrt(metres / range): finest near contact.
-          The shader shades from it, so the line stays crisp at any size.
+   green: how far it is to whatever stands on the floor (walls with their
+          plinth, column bases, the stair's foot), as sqrt(metres / range).
+   blue:  the same close to them (-0.06 to 0.30 m, 1.4 mm a step), signed:
+          negative behind the line where they stand. Filtering then keeps
+          that line straight and sharp wherever it crosses the texels; the
+          shader shades from it, so the line stays crisp at any size.
    room: the chamber as numbers (room-materials.js floorPlanSpec). */
 export function paintFloorPlan({extent: {x0, z0, x1, z1}, size, seed, range, lanes, spots, room}) {
   const w = x1 - x0, d = z1 - z0, count = size * size, random = randomSource(seed);
@@ -150,7 +153,9 @@ export function paintFloorPlan({extent: {x0, z0, x1, z1}, size, seed, range, lan
   // neighbours' are all that can be near); a bay open to the floor counts
   // only by its jambs. A column stands at each corner. Beyond the tower's
   // mouth, the tower's own round wall and the stair's foot.
-  const {apothem: A, sides, wall: T, half, columnAt, base, bays, mouth, tower, stair} = room, step = TAU / sides;
+  // (Distances are signed: negative inside what stands there.) The plinth
+  // stands out from the walls wherever an opening does not come down to the floor.
+  const {apothem: A, sides, wall: T, half, columnAt, base, plinth = 0, bays, mouth, tower, stair} = room, step = TAU / sides;
   const columns = Array.from({length: sides}, (_, i) => { const a = -Math.PI / 2 - step / 2 + i * step; return {x: columnAt * Math.cos(a), z: columnAt * Math.sin(a)}; });
   // The newel at the stair's foot, and the first riser with the flight's open edge beside it.
   const at = (phi, rho) => [tower.x + rho * Math.cos(phi), tower.z + rho * Math.sin(phi)];
@@ -169,32 +174,72 @@ export function paintFloorPlan({extent: {x0, z0, x1, z1}, size, seed, range, lan
       for (const [ax, az, bx, bz] of edges) c = Math.min(c, toSegment(x, z, ax, az, bx, bz));
       c = Math.min(c, far(x - newel[0], z - newel[1]) - .08);
       for (const k of [mouth, mouth + 1]) c = Math.min(c, far(x - columns[k % sides].x, z - columns[k % sides].z) - base);
-      return c > 0 ? c : 0;
+      return c;
     }
     const turn = (Math.atan2(z, x) + Math.PI / 2) / step, nearest = Math.round(turn);
     for (let k = nearest - 1; k <= nearest + 1; k++) {
-      const b = bays[((k % sides) + sides) % sides], along = x * b.ox + z * b.oz;
-      let gap = A - along;
-      if (b.open) { const u = Math.abs(x * b.rx + z * b.rz); if (u < b.open) gap = along < A ? far(b.open - u, A - along) : b.open - u; }
+      const b = bays[((k % sides) + sides) % sides], along = x * b.ox + z * b.oz, u = Math.abs(x * b.rx + z * b.rz);
+      let gap = A - along - (u < (b.bare || 0) ? 0 : plinth);
+      if (b.open && u < b.open) gap = along < A ? far(b.open - u, A - along) : b.open - u;
       if (gap < c) c = gap;
     }
-    if (c <= 0) return 0;
+    if (c <= -.1) return c;
     const column = columns[((Math.round(turn + .5) % sides) + sides) % sides];
-    return Math.max(0, Math.min(c, far(x - column.x, z - column.z) - base));
+    return Math.min(c, far(x - column.x, z - column.z) - base);
   }
   const data = new Uint8Array(count * 4);
   for (let j = 0, k = 0, q = 0; j < size; j++) {
     const z = zOf(j);
     for (let i = 0; i < size; i++, k++, q += 4) {
       data[q] = 255 * Math.min(1, wear[k] * (.8 + .28 * patches[k])) + .5;
-      data[q + 1] = 255 * Math.sqrt(Math.min(1, clearance(xOf(i), z) / range)) + .5;
+      const c = clearance(xOf(i), z);
+      data[q + 1] = 255 * Math.sqrt(Math.min(1, Math.max(0, c) / range)) + .5;
+      data[q + 2] = 255 * Math.min(1, Math.max(0, (c + .06) / .36)) + .5;
       data[q + 3] = 255;
     }
   }
   return {data};
 }
 
-const painters = {wood: paintWood, floorPlan: paintFloorPlan};
+/* Dressed stone, W by H pixels; it wraps both ways. Returns {colour, normal}
+   as paintWood does. Cut and rubbed smooth, not rough: no sand in it.
+   - Tone in broad clouds and a finer mottle, both soft.
+   - The face is very slightly uneven, as hand-dressed stone is, in shallow
+     hollows a hand or two wide: what a lamp's grazing light picks out.
+   - A few small pits, and faint drag marks from the tool, one way.
+   tones: [dark, pale], sRGB 0..255; pixel: [across, up] metres;
+   relief: metres of height per unit of field; pits: how many per square metre. */
+export function paintStone({W, H, seed, tones, pixel, relief = .0012, pits = 260, marks = .5}) {
+  const random = randomSource(seed), n = W * H, cells = (metres, k) => Math.max(2, Math.round(k * metres));
+  const wide = W * pixel[0], high = H * pixel[1];
+  // Tone: clouds about 40 cm and 12 cm across; mottle about 3 cm.
+  const tone = addNoise(addNoise(new Float32Array(n), W, H, cells(wide, 2.5), cells(high, 2.5), .6, random), W, H, cells(wide, 8), cells(high, 8), .4, random);
+  const mottle = addNoise(new Float32Array(n), W, H, cells(wide, 34), cells(high, 34), 1, random);
+  // The face's own unevenness (about 15 cm), and the tool's drag marks: long one way, a few millimetres the other.
+  const face = addNoise(new Float32Array(n), W, H, cells(wide, 6.5), cells(high, 6.5), 1, random);
+  const drag = addNoise(new Float32Array(n), W, H, cells(wide, 90), cells(high, 5), 1, random);
+  // Pits: each a small soft hollow.
+  const pit = new Float32Array(n);
+  for (let k = 0, count = Math.round(pits * wide * high); k < count; k++) {
+    const cx = random() * W, cy = random() * H, r = .8 + random() ** 2 * 2.4, deep = .35 + .65 * random(), reach = Math.ceil(r + 1);
+    for (let dy = -reach; dy <= reach; dy++) for (let dx = -reach; dx <= reach; dx++) {
+      const q = Math.hypot(dx, dy) / r; if (q >= 1.4) continue;
+      const i = ((Math.round(cy) + dy + H) % H) * W + (Math.round(cx) + dx + W) % W, v = deep * Math.max(0, 1 - q * q / 1.96);
+      if (v > pit[i]) pit[i] = v;
+    }
+  }
+  const colour = new Uint8ClampedArray(n * 4), height = new Float32Array(n);
+  const [[dr, dg, db], [pr, pg, pb]] = tones;
+  for (let i = 0, k = 0; i < n; i++, k += 4) {
+    const hollow = pit[i], v = Math.min(1, Math.max(0, .5 + tone[i] * .55 + mottle[i] * .13 + drag[i] * .05 * marks)) * (1 - .2 * hollow);
+    colour[k] = dr + (pr - dr) * v; colour[k + 1] = dg + (pg - dg) * v; colour[k + 2] = db + (pb - db) * v;
+    colour[k + 3] = (.55 + mottle[i] * .12 + hollow * .4) * 255;
+    height[i] = face[i] * 1.6 + mottle[i] * .1 + drag[i] * .12 * marks - hollow * 1.1;
+  }
+  return {colour: new Uint8Array(colour.buffer), normal: normalsOf(height, W, H, relief / (2 * pixel[0]), relief / (2 * pixel[1]))};
+}
+
+const painters = {wood: paintWood, floorPlan: paintFloorPlan, stone: paintStone};
 // Paints a set of jobs ({name: {kind, ...its settings}}). Returns the results
 // by name, how long each took, and their buffers (to hand over, not copy).
 export function paint(jobs) {

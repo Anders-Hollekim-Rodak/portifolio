@@ -90,6 +90,15 @@ try {
       ['gallery',free([0,1.6,.2],[3.2,3.0,-1.9])],
       // The cornice and the plinth along a blind bay.
       ['trim',free([.4,1.5,1.4],[3.6,1.4,2.2])],
+      // The door's stone frame, close: its profile and its edges.
+      ['door-frame',free([1.2,1.6,2.9],[.6,1.7,4.25])],
+      // The gallery's front from below: the moulded fascia, the rails.
+      ['gallery-front',free([.3,1.9,.6],[2.6,2.65,-1.0])],
+      // The cornice under the vault, from the open middle at gallery height.
+      ['cornice',free([1.0,3.6,.8],[3.3,3.85,2.3])],
+      // From inside the stair tower, back at a column of its mouth: the
+      // column's base and shafts seen from behind.
+      ['tower-mouth',free([4.9,1.1,-2.0],[3.93,.3,-.75])],
     ],
     walls:[
       // A blind bay in the sconce's light, obliquely: the wall's relief.

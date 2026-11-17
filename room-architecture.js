@@ -3,6 +3,11 @@
 // room-chamber.js); sky and interactions are untouched. windowMap and doorMap
 // place a point on the window's and the door's wall: (u, y, depth), u to the
 // right as seen from the room, depth toward it.
+// The stone pieces carry their edges for the surfaces' shader
+// (room-joinery.js, room-materials.js): rounded where free, shaded where
+// they meet the wall.
+import {createJoinery,NONE} from './room-joinery.js';
+
 export const architectureTuning = {
   frameWidth: .115, frameProjection: .085, revealDepth: .24,
   sillProjection: .16, traceryRadius: .012,
@@ -12,15 +17,16 @@ export const architectureTuning = {
 };
 
 export function createRoomArchitecture(THREE,{aperture,windowMap,door,doorMap,tower,lancets,stair},tuning=architectureTuning) {
-  const stone=[],metal=[];
+  const stone=[],metal=[],J=createJoinery(THREE);
   const at=(phi,r,y)=>new THREE.Vector3(tower.x+r*Math.cos(phi),y,tower.z+r*Math.sin(phi));
   const tread=i=>(i+1)*stair.rise;
-  const box=(w,h,d,x,y,z)=>new THREE.BoxGeometry(w,h,d).translate(x,y,z);
   const combine=parts=>{
     const result=new THREE.BufferGeometry(),flat=parts.map(g=>g.index?g.toNonIndexed():g);
-    for(const [name,size] of [['position',3],['normal',3],['uv',2]]) {
-      const values=new Float32Array(flat.reduce((n,g)=>n+g.attributes[name].array.length,0));
-      let offset=0;for(const g of flat){values.set(g.attributes[name].array,offset);offset+=g.attributes[name].array.length;}
+    // (Edges where any piece has them; the others have none.)
+    for(const [name,size] of [['position',3],['normal',3],['uv',2],...(flat.some(g=>g.attributes.edges)?[['edges',4]]:[])]) {
+      const values=new Float32Array(flat.reduce((n,g)=>n+g.attributes.position.count*size,0));
+      if(name==='edges')values.fill(NONE);
+      let offset=0;for(const g of flat){if(g.attributes[name])values.set(g.attributes[name].array,offset);offset+=g.attributes.position.count*size;}
       result.setAttribute(name,new THREE.BufferAttribute(values,size));
     }
     return result;
@@ -39,19 +45,31 @@ export function createRoomArchitecture(THREE,{aperture,windowMap,door,doorMap,to
     points.push([r,w.sill-pad]);return points;
   }
   const radial=w=>(u,y,depth)=>at(w.at+u/tower.r,tower.r-depth,y);
-  function ribbon(w,profile,map) {
+  // kinds: what the stone does at each row of the profile: 'arris' (a free
+  // edge, rounded in the shading), 'crease' (an inner corner) or 'contact'
+  // (where it meets the wall), both shaded, or nothing. Each face between two
+  // rows carries its distances to them (room-joinery.js edges).
+  function ribbon(w,profile,map,kinds=[]) {
     const rows=profile.map(([pad,depth])=>contour(w,pad).map(([u,y])=>map(u,y,depth)));
-    const data=[];
-    for(let row=0;row<rows.length-1;row++) for(let j=0;j<rows[0].length;j++) {
-      const k=(j+1)%rows[0].length,a=rows[row][j],b=rows[row][k],c=rows[row+1][k],d=rows[row+1][j];
-      for(const v of [a,d,c,a,c,b])data.push(v.x,v.y,v.z);
+    const data=[],edges=[];
+    for(let row=0;row<rows.length-1;row++) {
+      const L=Math.hypot(profile[row+1][0]-profile[row][0],profile[row+1][1]-profile[row][1]),from=kinds[row],to=kinds[row+1];
+      const at=k=>[from==='arris'?k*L:NONE,to==='arris'?(1-k)*L:NONE,from&&from!=='arris'?k*L:NONE,to&&to!=='arris'?(1-k)*L:NONE];
+      const start=at(0),end=at(1);
+      for(let j=0;j<rows[0].length;j++) {
+        const k=(j+1)%rows[0].length,a=rows[row][j],b=rows[row][k],c=rows[row+1][k],d=rows[row+1][j];
+        for(const [v,e] of [[a,start],[d,end],[c,end],[a,start],[c,end],[b,start]]){data.push(v.x,v.y,v.z);edges.push(...e);}
+      }
     }
     const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(data,3));
     geometry.setAttribute('uv',new THREE.Float32BufferAttribute(new Float32Array(data.length/3*2),2));
+    geometry.setAttribute('edges',new THREE.Float32BufferAttribute(edges,4));
     geometry.computeVertexNormals();return geometry;
   }
+  // A dressed block, its edges rounded all round (room-joinery.js beam).
+  const block=(w,h,d,x,y,z)=>J.beam(w,h,d,{ends:['round','round']}).translate(x,y,z);
   function mappedBox(w,h,d,u,y,depth,map) {
-    const g=box(w,h,d,u,y,depth),p=g.attributes.position;
+    const g=block(w,h,d,u,y,depth),p=g.attributes.position;
     for(let i=0;i<p.count;i++){const v=map(p.getX(i),p.getY(i),p.getZ(i));p.setXYZ(i,v.x,v.y,v.z);}
     g.computeVertexNormals();return g;
   }
@@ -61,8 +79,11 @@ export function createRoomArchitecture(THREE,{aperture,windowMap,door,doorMap,to
   }
   function frame(w,map,scale=1,deep=true) {
     const width=tuning.frameWidth*scale,proud=tuning.frameProjection*scale;
+    // From the wall out to its face, back over a sunk step, and in to the
+    // opening's reveal.
     stone.push(ribbon(w,[[width,.008],[width*.86,proud],[width*.56,proud],
-      [width*.43,proud*.40],[width*.24,proud*.55],[0,deep?-tuning.revealDepth:.004]],map));
+      [width*.43,proud*.40],[width*.24,proud*.55],[0,deep?-tuning.revealDepth:.004]],map,
+      ['contact','arris','arris','crease','arris','contact']));
     // A projecting weathered sill over a narrower apron; not a single block.
     if(w.sill>0) {
       stone.push(mappedBox(w.halfWidth*2+width*2,.065,.30+tuning.sillProjection,0,w.sill-.045,-.10,map),
@@ -132,8 +153,8 @@ export function createRoomArchitecture(THREE,{aperture,windowMap,door,doorMap,to
   // bronze tracery shares its pointed-eye language with the window details.
   for(let i=0;i<=stair.count;i+=2) {
     const p=railAt(i),base=i===0?0:tread(i-1),height=p.y-base;
-    metal.push(new THREE.CylinderGeometry(.012,.018,height,6,1,true).translate(p.x,base+height/2,p.z));
-    stone.push(box(.068,.05,.068,p.x,base+.035,p.z));
+    metal.push(new THREE.CylinderGeometry(.012,.018,height,8,1,true).translate(p.x,base+height/2,p.z));
+    stone.push(block(.068,.05,.068,p.x,base+.035,p.z));
     if(i<stair.count) {
       const points=Array.from({length:9},(_,j)=>{
         const t=j/8,v=railAt(i+t*2);v.y-=.36-.24*Math.sin(t*Math.PI);return v;
@@ -143,8 +164,8 @@ export function createRoomArchitecture(THREE,{aperture,windowMap,door,doorMap,to
   }
   // A carved starting pedestal anchors the spiral instead of a thin pole.
   const foot=railAt(0);
-  stone.push(box(.15,.10,.15,foot.x,.05,foot.z),box(.105,.70,.105,foot.x,.45,foot.z),
-    box(.14,.07,.14,foot.x,.835,foot.z));
+  stone.push(block(.15,.10,.15,foot.x,.05,foot.z),block(.105,.70,.105,foot.x,.45,foot.z),
+    block(.14,.07,.14,foot.x,.835,foot.z));
   const finial=new THREE.OctahedronGeometry(.045,0);finial.scale(1,1.6,1);finial.translate(foot.x,foot.y+.035,foot.z);metal.push(finial);
   // Fine worn-metal nosing inlays catch light on alternating treads only.
   for(let i=0;i<stair.count;i+=2) {
