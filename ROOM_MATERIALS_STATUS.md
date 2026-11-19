@@ -1,10 +1,10 @@
 # Room materials: status
 
-2026-11-17. Branch `feature/room-materials`, worktree `verification/room-materials`, from `main` `bb170e0`. Not merged, not pushed.
+2026-11-17 to 2026-11-19. Branch `feature/room-materials`, worktree `verification/room-materials`, from `main` `bb170e0`. Published: pushed to `origin/main` as `8541193` on 2026-11-19 (a fast-forward), with the user's go-ahead.
 
 The brief (the user, 2026-11-16): the room reads as "low poly, early game". Refine what is there into stylised realism: materials that feel real (wood, stone, plaster with structure, joints and wear), a little simplified, warm, not dirty. Forms, places, light and composition stay. Four surfaces, in three steps, each shown to the user before the next: the floor; columns and trim; walls. The nook's objects (`tools-shelf.js`) set the level of detail.
 
-**Where it stands:** all three steps are done (2026-11-17). Steps 1 and 2 are approved by the user; step 3, the walls, waits for the user's review, with one open question about load time (Remaining, below).
+**Where it stands:** all three steps are done, approved by the user and published (2026-11-19: "dette funker inntil videre"). Making the maps smaller for load time is parked (Remaining, below).
 
 ## Done: the floor
 
@@ -141,5 +141,6 @@ The same check on battery earlier that day was unusable (9.5 s and 20.5 s for th
 
 1. The floor was reviewed by the user on 2026-11-17: the wear and the grain stay as they are, go on to step 2.
 2. Step 2 is done. The user's answers (2026-11-17): the timber stays as it is; the vault's ribs keep the columns' new timber; the stair's handrail is round (8 faces; the architecture's budget in `architecture-check` and `portal-check` raised from 2,700 to 2,900 triangles, now 2,862); go on to the walls.
-3. Step 3 (walls) is done. Asked the user (2026-11-17): is the plaster right (seen in the lamps' light, but calm); is about 1 s more load time under `performance-check` acceptable, or should the maps be made smaller (recommended: try halving the floor's and the plaster's, then measure again)?
-4. Not checked: WebGL 1 (the shader avoids WebGL 2 only syntax, but no WebGL 1 device was tried); Firefox and Safari; a real phone.
+3. Step 3 (walls) is done and approved with the rest (2026-11-19). The load time stays as measured for now.
+4. Parked, for when load time matters again: try halving the floor's and the plaster's maps (about 1 s under `performance-check`, little without the profiler), then measure again against `main`.
+5. Not checked: WebGL 1 (the shader avoids WebGL 2 only syntax, but no WebGL 1 device was tried); Firefox and Safari; a real phone.
