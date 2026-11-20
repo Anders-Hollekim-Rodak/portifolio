@@ -274,6 +274,11 @@ body:has(.screen.portal-active) .hand-card .sub-card { pointer-events: auto; }
    and in reach below it, clear of its text and its retrieve button.
    Verktøy keeps its compact composition, and the hand up. */
 body:has(.screen .app-view.active:not(#app-verktoy)) .hand-card { --hand-tuck: 66%; }
+/* A pile beside the hand is laid down with it, or its cards would lie over
+   the page's foot. (The deal and a card's return fly `translate` too; they
+   end at rest, where a closed page leaves the pile.) */
+.pile-card { transition: translate .35s cubic-bezier(.34, 1.56, .64, 1); }
+body:has(.screen .app-view.active:not(#app-verktoy)) .pile-card { translate: 0 66%; }
 /* Only the thrown card's lifecycle hides it. Keep the rest of the hand. */
 body:not(.intro-done) .hand-card, body:not(.intro-done) .card-pile { visibility: hidden; pointer-events: none; }
 body:not(.intro-done) .theme-toggle { visibility: hidden; }
