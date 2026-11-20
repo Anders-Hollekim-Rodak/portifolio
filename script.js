@@ -531,7 +531,7 @@
   }
 
   // ---- Wordmark: rebuilds it letter by letter, each one flying out of the
-  // portal's center to its actual spot — used both for "ANNISJ" appearing
+  // portal's center to its actual spot — used both for "ANDERS" appearing
   // the first time and for every later line in the text-morph sequence.
   function setWordmarkText(str) {
     wordmark.innerHTML = '';
@@ -552,7 +552,10 @@
 
   function runTextSequence(done, myGen) {
     document.body.classList.add('intro-textreveal');
-    setWordmarkText('ANNISJ');
+    // The lines stand in the middle of the screen (styles.css .is-centred);
+    // the name's last flight lands it top left, where it stays.
+    wordmark.classList.add('is-centred');
+    setWordmarkText('ANDERS');
     window.setTimeout(() => {
       if (sequenceGen !== myGen) return;
       setWordmarkText('Oisann');
@@ -561,7 +564,8 @@
         setWordmarkText('Du fant min korte folio');
         window.setTimeout(() => {
           if (sequenceGen !== myGen) return;
-          setWordmarkText('ANNISJ');
+          wordmark.classList.remove('is-centred');
+          setWordmarkText('ANDERS');
           window.setTimeout(() => {
             if (sequenceGen === myGen) done();
           }, 1100);

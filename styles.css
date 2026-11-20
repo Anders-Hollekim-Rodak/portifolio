@@ -718,6 +718,25 @@ body.intro-active .screen {
   max-width: 60vw;
 }
 
+/* While the intro's lines appear they stand in the middle of the screen
+   (script.js runTextSequence); outside the reveal the name sits top left. */
+body.intro-textreveal .wordmark.is-centred {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  font-size: clamp(1.6rem, 4.2vw, 3rem);
+  justify-content: center;
+}
+/* Each letter is its own element, so a wrap could split a word: the long
+   line keeps to one line instead, its size following the screen's width. */
+body.intro-textreveal .wordmark.is-centred.is-long {
+  font-size: clamp(0.9rem, 4.6vw, 2.2rem);
+  flex-wrap: nowrap;
+  max-width: none;
+  white-space: nowrap;
+}
+
 /* TEMPORARY dev nav — remove once the real tap-target UX is designed. */
 .dev-nav {
   position: fixed;
