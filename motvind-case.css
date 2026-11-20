@@ -1,0 +1,368 @@
+/* ==========================================================================
+   MOTVIND NORGE — the case page in the portal (#app-motvind, motvind-case.js),
+   after the Figma design «motvind norge v2», frame «01 Oppgaven». Figma draws
+   it at 1824 x 992; here it fills the portal's reader (scene-camera.js), so
+   spacing follows the panel's height and type the page's width, up to the
+   Figma sizes. Everything is scoped to the case.
+   ========================================================================== */
+#app-motvind {
+  --mv-gold: #d4b25b;
+  --mv-gold-rgb: 212, 178, 91;
+  --mv-cream: #f6e3c7;
+  --mv-muted: #7f9a94;
+  --mv-body: #a9bdb6;
+  --mv-box: #2b4543;
+  --mv-edge: #4f716d;
+  --mv-line: #3a5754;
+  --mv-glass: rgba(28, 46, 46, .42);
+  --mv-display: 'Fraunces', Georgia, serif;
+  --mv-text: 'Space Grotesk', var(--font-heading), sans-serif;
+  container: mv-panel / size;
+  /* Back to the design's sizes on screen (motvind-case.js fit()). */
+  zoom: var(--mv-zoom, 1);
+  font-family: var(--mv-text);
+  color: var(--mv-cream);
+}
+
+/* The panel: the landscape (one still image for now) under a glass top bar
+   and contents list, in place of the shared glass page. */
+.screen #app-motvind {
+  /* Its size is set by motvind-case.js fit(); cover until then. */
+  background: #1f3133 url("assets/motvind/landskap-01.png") 100% 100% / var(--mv-scene-width, cover) no-repeat;
+  border: 1px solid var(--mv-edge);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 14px 20px #0008;
+}
+
+/* ---- Top bar: Tilbake, the title, and the portal's own «Få tilbake kort»
+   (portal.css places it in this row on a wide page). */
+#app-motvind .app-header {
+  position: relative;
+  z-index: 2;
+  min-height: 71px;
+  box-sizing: border-box;
+  gap: 20px;
+  padding: 16px 24px 13px;
+  border-bottom: 1px solid var(--mv-line);
+  background: var(--mv-glass);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+#app-motvind .app-header h2 {
+  font-family: var(--mv-display);
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1.4;
+  font-variation-settings: "SOFT" 0, "WONK" 1;
+  color: var(--mv-cream);
+}
+#app-motvind .back-btn {
+  font-family: var(--mv-text);
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 1.4;
+  padding: 9px 18px;
+  white-space: pre;
+  color: var(--mv-cream);
+  background: transparent;
+  border: 1px solid var(--mv-gold);
+}
+#app-motvind .back-btn:hover { background: rgba(var(--mv-gold-rgb), .16); color: var(--mv-cream); }
+.portal-page:has(> #app-motvind.active) .portal-retrieve {
+  zoom: var(--mv-zoom, 1);
+  font-family: 'Space Grotesk', var(--font-heading), sans-serif;
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 1.4;
+  padding: 9px 18px;
+  color: #f6e3c7;
+  background: transparent;
+  border: 1px solid #4f716d;
+}
+.portal-page:has(> #app-motvind.active) .portal-retrieve:hover { background: rgba(79, 113, 109, .3); }
+
+/* ---- Below the bar: the contents list, then the page. */
+.screen #app-motvind .mv-body {
+  position: relative;
+  display: grid;
+  grid-template-columns: 290px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  padding: 0;
+  overflow: hidden;
+}
+/* The shared entrance without its blur: a filter here would cut the glass
+   of the contents list off from the landscape behind it. */
+.screen #app-motvind.active .mv-body { animation-name: mv-projected; }
+@keyframes mv-projected {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: none; }
+}
+
+#app-motvind button { font-family: var(--mv-text); }
+#app-motvind button:focus-visible { outline: 2px solid var(--mv-gold); outline-offset: 2px; }
+#app-motvind [data-heading]:focus { outline: none; }
+
+/* ---- Contents list */
+#app-motvind .mv-side {
+  min-height: 0;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 33px 40px 24px 24px;
+  border-right: 1px solid var(--mv-line);
+  background: var(--mv-glass);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  scrollbar-width: thin;
+}
+#app-motvind .mv-toc-label,
+#app-motvind .mv-kicker {
+  margin: 0;
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 1.1px;
+  color: var(--mv-gold);
+}
+#app-motvind .mv-toc-label { color: rgb(var(--mv-group-rgb, var(--mv-gold-rgb))); }
+#app-motvind .mv-toc-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+#app-motvind .mv-toc-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  text-align: left;
+  font-weight: 400;
+  font-size: 15px;
+  line-height: normal;
+  color: var(--mv-muted);
+  cursor: pointer;
+}
+#app-motvind .mv-toc-item--sub { gap: 10px; padding: 5px 0 5px 15px; font-size: 14px; }
+#app-motvind .mv-toc-text { flex: 1; min-width: 0; white-space: pre-wrap; }
+#app-motvind .mv-toc-bar {
+  flex: none;
+  width: 3px;
+  height: 20px;
+  border-radius: 2px;
+  background: rgba(var(--mv-rgb), .35);
+}
+#app-motvind .mv-toc-icon { flex: none; width: 16px; height: 16px; opacity: .35; }
+#app-motvind .mv-toc-item[data-near="true"] .mv-toc-icon { opacity: .6; }
+#app-motvind .mv-toc-item.is-lit { color: var(--mv-cream); font-weight: 500; }
+#app-motvind .mv-toc-item.is-lit .mv-toc-bar { background: rgb(var(--mv-rgb)); }
+#app-motvind .mv-toc-item.is-lit .mv-toc-icon { opacity: 1; }
+#app-motvind .mv-toc-item:not(.is-lit):hover { color: var(--mv-body); }
+/* Shown only where the list folds away (narrow pages, below). */
+#app-motvind .mv-toc-toggle { display: none; }
+
+/* ---- The page */
+#app-motvind .mv-main {
+  container: mv-main / inline-size;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Figma: 48 px under the bar, 36 px above the panel's foot, 40 px between
+     the page and Forrige / Neste, in a 992 px panel. */
+  padding: clamp(16px, 4.84cqh, 48px) 40px clamp(14px, 3.63cqh, 36px);
+}
+#app-motvind .mv-page {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 1200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: safe center;
+  /* 16 px in a 992 px panel, closer on a low one. */
+  gap: clamp(10px, 1.62cqh, 16px);
+  scrollbar-width: thin;
+  scrollbar-color: #74877a66 transparent;
+}
+#app-motvind .mv-page.is-entering > * { animation: mv-page-in .32s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes mv-page-in { from { opacity: 0; transform: translateY(10px); } }
+
+#app-motvind .mv-note {
+  margin: 0;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--mv-muted);
+}
+#app-motvind .mv-question {
+  margin: 0;
+  font-family: var(--mv-display);
+  font-weight: 600;
+  font-size: clamp(24px, 3.4cqi, 40px);
+  line-height: 1.15;
+  font-variation-settings: "SOFT" 0, "WONK" 1;
+  color: var(--mv-cream);
+}
+#app-motvind .mv-lead {
+  margin: 0;
+  font-weight: 400;
+  font-size: clamp(16px, 1.6cqi, 19px);
+  line-height: 1.4;
+  color: var(--mv-body);
+}
+#app-motvind .mv-callout {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: clamp(14px, 2.02cqh, 20px) 26px clamp(16px, 2.22cqh, 22px);
+  border: 1.5px solid var(--mv-gold);
+  border-radius: 14px;
+  background: var(--mv-box);
+}
+#app-motvind .mv-callout-text {
+  margin: 0;
+  font-weight: 500;
+  font-size: clamp(16px, 1.75cqi, 21px);
+  line-height: 1.38;
+  color: var(--mv-cream);
+}
+#app-motvind .mv-line { display: block; }
+#app-motvind .mv-callout-link {
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1.4;
+  padding: 7px 14px;
+  color: var(--mv-gold);
+  background: transparent;
+  border: 1px dashed var(--mv-gold);
+  border-radius: 999px;
+  cursor: pointer;
+}
+#app-motvind .mv-callout-link:hover { background: rgba(var(--mv-gold-rgb), .12); }
+
+/* ---- Forrige, the dots, Neste */
+#app-motvind .mv-pager {
+  width: 100%;
+  max-width: 1200px;
+  margin-top: clamp(14px, 4.03cqh, 40px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+#app-motvind .mv-step {
+  flex: none;
+  padding: 11px 22px;
+  font-weight: 500;
+  font-size: 15px;
+  line-height: normal;
+  white-space: pre;
+  color: var(--mv-cream);
+  /* Figma leaves them clear; a faint glass keeps the landscape's lit
+     windows, which fall behind them at some sizes, out of the lettering. */
+  background: var(--mv-glass);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--mv-edge);
+  border-radius: 999px;
+  cursor: pointer;
+}
+#app-motvind .mv-step--next { border-color: var(--mv-gold); }
+#app-motvind .mv-step--prev:hover { background: rgba(79, 113, 109, .3); }
+#app-motvind .mv-step--next:hover { background: rgba(var(--mv-gold-rgb), .14); }
+#app-motvind .mv-step.is-hidden { visibility: hidden; }
+#app-motvind .mv-dots { display: flex; align-items: center; }
+#app-motvind .mv-dot {
+  display: flex;
+  align-items: center;
+  padding: 10px 4px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+#app-motvind .mv-dot-mark {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(var(--mv-rgb), .28);
+  transition: width .25s ease, background-color .25s ease;
+}
+#app-motvind .mv-dot[data-state="past"] .mv-dot-mark { background: rgba(var(--mv-rgb), .6); }
+#app-motvind .mv-dot[data-state="current"] .mv-dot-mark { width: 28px; background: rgb(var(--mv-rgb)); }
+#app-motvind .mv-dot-gap { flex: none; width: 8px; height: 8px; }
+#app-motvind .mv-dot-group {
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  border: 1px solid rgba(var(--mv-rgb), .25);
+  border-radius: 999px;
+}
+#app-motvind .mv-dot-group.is-open { border-color: rgba(var(--mv-rgb), .6); }
+#app-motvind .mv-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---- A narrow page (a phone, a small window): the contents list folds
+   away behind an «Innhold» button and slides in over the page. */
+@container mv-panel (max-width: 760px) {
+  .screen #app-motvind .mv-body { grid-template-columns: minmax(0, 1fr); }
+  #app-motvind .mv-side {
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: 3;
+    width: min(290px, 86%);
+    background: rgba(28, 46, 46, .94);
+    transform: translateX(-102%);
+    visibility: hidden;
+    transition: transform .3s ease, visibility 0s linear .3s;
+  }
+  #app-motvind.is-toc-open .mv-side { transform: none; visibility: visible; transition: transform .3s ease; }
+  #app-motvind .mv-toc-toggle {
+    display: inline-flex;
+    align-self: flex-start;
+    margin-bottom: 12px;
+    padding: 7px 14px;
+    font-weight: 500;
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--mv-cream);
+    background: rgba(28, 46, 46, .6);
+    border: 1px solid var(--mv-edge);
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  #app-motvind .mv-main { padding-inline: 20px; }
+  #app-motvind .app-header { gap: 14px; padding-inline: 16px; }
+  #app-motvind .app-header h2 { font-size: 19px; }
+}
+/* Too narrow for Forrige, the dots and Neste in one row: the dots go above. */
+@container mv-main (max-width: 520px) {
+  #app-motvind .mv-pager { flex-wrap: wrap; row-gap: 6px; }
+  #app-motvind .mv-dots { order: -1; flex-basis: 100%; justify-content: center; }
+  #app-motvind .mv-step { padding: 9px 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #app-motvind .mv-page.is-entering > * { animation: none; }
+  #app-motvind .mv-dot-mark,
+  #app-motvind .mv-side { transition: none !important; }
+}

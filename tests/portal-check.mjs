@@ -400,7 +400,7 @@ try {
           await cdp('Input.dispatchKeyEvent', {type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
           await until(`document.querySelector('#app-motvind').classList.contains('active')`);
           await sleep(350); await shot('motvind-case-' + width); await assertViewport();
-          assert.ok(await evaluate(`document.querySelector('#app-motvind').textContent.includes('Instagram')`),'The Motvind page holds the case');
+          assert.ok(await evaluate(`document.querySelector('#app-motvind').textContent.includes('Hvordan posisjonerer man kjernekraft')`),'The Motvind page opens on Oppgaven');
           await click('#portalRetrieve'); await sleep(1100);
           assert.equal(await evaluate(`!!document.querySelector('.app-view.active')`),false,'Retrieving closes the Motvind page');
           assert.equal(await evaluate(`getComputedStyle(document.querySelector('${motvind}')).visibility`),'visible','The Motvind card is back in its pile');
@@ -435,6 +435,125 @@ try {
     await assertViewport();
     assert.equal(errors.length,0, JSON.stringify(errors));
     console.log('PASS: live viewport resize, focus, theme toggle and theme drag');
+  } else if (process.argv.includes('--motvind-only')) {
+    // The Motvind case (motvind-case.js) at the sizes of a large and a small
+    // window and a phone: the pack opened, the pile's Motvind card thrown in
+    // from the keyboard, then its frame, its pages and its keys, and the card
+    // back in its pile. Screenshots: .qa/motvind-*.png.
+    // Enter carries its text, so a focused button is pressed as by a keyboard.
+    const press=async (key,code=key,vk=0) => {
+      await cdp('Input.dispatchKeyEvent',{type:'keyDown',key,code,windowsVirtualKeyCode:vk,...(key==='Enter'?{text:'\r'}:{})});
+      await cdp('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode:vk});
+    };
+    const caseState=`(() => {
+      const view=document.querySelector('#app-motvind'),page=view.querySelector('.mv-page');
+      const shown=e=>!!e && getComputedStyle(e).visibility==='visible' && e.getClientRects().length>0;
+      return {page:motvindCase.current,dots:view.querySelectorAll('.mv-dot').length,rows:view.querySelectorAll('.mv-toc-item').length,
+        currentDot:[...view.querySelectorAll('.mv-dot')].findIndex(d=>d.getAttribute('aria-current')==='page'),
+        lit:[...view.querySelectorAll('.mv-toc-item.is-lit')].map(b=>b.dataset.goto).join(),
+        prev:shown(view.querySelector('.mv-step--prev')),next:shown(view.querySelector('.mv-step--next')),
+        placeholder:page.dataset.placeholder==='true',status:view.querySelector('.mv-status').textContent,
+        focus:document.activeElement?.className||document.activeElement?.tagName};
+    })()`;
+    for (const [width,height] of [[1920,1080],[1920,910],[1366,768],[390,844]]) {
+      await cdp('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
+      await cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+      await cdp('Page.navigate',{url:`http://127.0.0.1:${port}/`});
+      // The room is built in software here; on a busy machine that alone can
+      // take longer than the usual 30 s.
+      await until(`${SEATED}`,60000);
+      await click('#introForward');
+      await until(`document.body.classList.contains('intro-done') && !document.querySelector('.portal-flight')`);
+      await sleep(300);
+      await evaluate(`document.querySelector('.hand-card--prosjekter .sub-card').focus({preventScroll:true})`);
+      await press('Enter','Enter',13);
+      await until(`document.querySelector('#app-prosjekter').classList.contains('active')`);
+      await sleep(350); await click('#prosjektPakke .pack-open');
+      await until(`!!document.querySelector('.card-pile') && !document.querySelector('.card-pile').getAnimations({subtree:true}).length && !document.querySelector('.app-view.active')`,15000);
+      const motvind='.pile-card[data-card="motvind"] .sub-card';
+      const pileAtRest=await bounds('.pile-card[data-card="dukkehjem"]');
+      await evaluate(`document.querySelector('${motvind}').focus({preventScroll:true})`);
+      await press('Enter','Enter',13);
+      await until(`document.querySelector('#app-motvind').classList.contains('active') && !document.querySelector('#screen').classList.contains('is-projecting')`);
+      // The fonts and the landscape come from the network when the case opens.
+      await until(`document.fonts.check('600 40px Fraunces') && document.fonts.check('400 14px "Space Grotesk"')`,10000).catch(() => console.log('Fonts not loaded at',width,height));
+      await evaluate(`new Promise(done => {const i=new Image();i.onload=i.onerror=done;i.src='assets/motvind/landskap-01.png';})`);
+      // The pointer off the hand, or its card's enlarged peek covers the page.
+      await cdp('Input.dispatchMouseEvent',{type:'mouseMoved',x:Math.round(width/2),y:Math.round(height*.1)});
+      await sleep(700); await assertViewport();
+      await shot(`motvind-01-${width}x${height}`);
+      const frame=await evaluate(`(() => {
+        const view=document.querySelector('#app-motvind'),r=e=>e.getBoundingClientRect();
+        const header=r(view.querySelector('.app-header')),retrieve=document.querySelector('#portalRetrieve'),rr=r(retrieve);
+        const covered=sel=>{const e=view.querySelector(sel),b=r(e);return document.elementFromPoint(b.left+b.width/2,b.top+b.height/2)?.closest(sel)!==e;};
+        const page=view.querySelector('.mv-page'),side=view.querySelector('.mv-side');
+        // The landscape's moon (380 of its 1824 px), right-anchored, against the list's edge.
+        const scene=parseFloat(view.style.getPropertyValue('--mv-scene-width'))||0;
+        const moon=getComputedStyle(side).position==='absolute' ? null : view.clientWidth-(1824-380)*scene/1824<=side.offsetWidth;
+        return {moon,closes:view.querySelectorAll('[data-close]').length,retrieves:document.querySelectorAll('#portalRetrieve').length,
+          retrieveShown:!retrieve.hidden,retrieveInHeader:rr.top>=header.top && rr.bottom<=header.bottom,
+          text:view.textContent,nextCovered:covered('.mv-step--next'),dotsCovered:covered('.mv-dot[aria-current]'),
+          fits:page.scrollHeight<=page.clientHeight+1,tocShown:getComputedStyle(view.querySelector('.mv-side')).visibility==='visible',
+          entering:page.classList.contains('is-entering')};
+      })()`);
+      console.log('Motvind frame at',width,height,JSON.stringify({...frame,text:undefined}));
+      assert.equal(frame.closes,1,'One Tilbake in the case'); assert.equal(frame.retrieves,1,'One «Få tilbake kort»');
+      assert.ok(frame.retrieveShown,'«Få tilbake kort» is shown');
+      if (width>=700) assert.ok(frame.retrieveInHeader,'«Få tilbake kort» sits in the top bar');
+      assert.ok(frame.text.includes('Hvordan posisjonerer man kjernekraft mot en målgruppe som er åpen, men ikke overbevist?'),'The question from Figma');
+      assert.ok(frame.text.includes('emosjonelt nært') && !frame.text.includes('emsojonelt'),'«emosjonelt», as approved');
+      assert.ok(frame.text.includes('Da landet vi på dem som lever tett på norsk natur.'),'The last line, as approved');
+      assert.ok(!frame.nextCovered && !frame.dotsCovered,'Nothing (hand or pile) lies over Neste and the dots');
+      assert.equal(frame.entering,false,'No page entrance under reduced motion');
+      if (width===1920) assert.ok(frame.fits,'Oppgaven fits the page without a scroll at '+width+'x'+height);
+      assert.equal(frame.tocShown,width>=700,'The contents list shows on a wide page and folds away on a phone');
+      assert.equal(frame.moon,width>=700 ? true : null,'Beside the list, the landscape\'s moon lies under its glass');
+      const pileOpen=await bounds('.pile-card[data-card="dukkehjem"]');
+      assert.ok(pileOpen.top>pileAtRest.top+20,'The pile is laid down while the page is open');
+      let s=await evaluate(caseState);
+      assert.deepEqual({page:s.page,dots:s.dots,rows:s.rows,currentDot:s.currentDot,lit:s.lit,prev:s.prev,next:s.next,placeholder:s.placeholder},
+        {page:'oppgaven',dots:11,rows:9,currentDot:0,lit:'oppgaven',prev:false,next:true,placeholder:false},'The case opens on Oppgaven');
+      // The keys: → and ← turn the page, End and Home go to the ends.
+      await press('ArrowRight','ArrowRight',39); s=await evaluate(caseState);
+      assert.deepEqual([s.page,s.currentDot,s.lit,s.prev,s.placeholder,s.status],['innsikten',1,'innsikten',true,true,'Side 2 av 11: Innsikten'],'→ goes to Innsikten');
+      await press('End','End',35); s=await evaluate(caseState);
+      assert.deepEqual([s.page,s.next,s.prev],['annerledes',false,true],'End goes to the last page, without Neste');
+      await press('Home','Home',36); s=await evaluate(caseState);
+      assert.deepEqual([s.page,s.prev],['oppgaven',false],'Home goes back to Oppgaven');
+      // Neste by keyboard keeps the focus on it; a sub-page lights its chapter.
+      await evaluate(`document.querySelector('#app-motvind .mv-step--next').focus()`);
+      await press('Enter','Enter',13); await press('Enter','Enter',13); s=await evaluate(caseState);
+      assert.deepEqual([s.page,s.lit,s.focus],['debatten-i-tall','innsikten,debatten-i-tall','mv-step mv-step--next'],'Neste twice: 1.1, with Innsikten lit');
+      await shot(`motvind-11-${width}x${height}`);
+      // The second 1.2 page lights the 1.2 row; the challenge's link goes to Svaret.
+      await evaluate(`motvindCase.go('avsenderne-naert')`); s=await evaluate(caseState);
+      assert.equal(s.lit,'innsikten,avsenderne','Avsenderne på nært hold lights the 1.2 row');
+      await evaluate(`motvindCase.go('oppgaven')`);
+      await evaluate(`document.querySelector('#app-motvind .mv-callout-link').click()`); s=await evaluate(caseState);
+      assert.deepEqual([s.page,s.lit,s.focus],['svaret','valget','mv-question mv-question--placeholder'],'«Se hvordan vi svarte på den» opens Svaret på utfordringen');
+      if (width<700) {
+        // On a phone the list opens over the page and Escape folds it away.
+        await click('#app-motvind .mv-toc-toggle'); await sleep(100);
+        assert.equal(await evaluate(`getComputedStyle(document.querySelector('#app-motvind .mv-side')).visibility`),'visible','Innhold opens the list');
+        await shot(`motvind-toc-${width}x${height}`);
+        await press('Escape','Escape',27); await sleep(100);
+        assert.equal(await evaluate(`getComputedStyle(document.querySelector('#app-motvind .mv-side')).visibility`),'hidden','Escape folds it away');
+      }
+      // A contents row, by pointer.
+      if (width<700) { await click('#app-motvind .mv-toc-toggle'); await sleep(100); }
+      await click('#app-motvind .mv-toc-item[data-goto="oppgaven"]');
+      s=await evaluate(caseState);
+      assert.equal(s.page,'oppgaven','A contents row opens its page');
+      // Back out: the card returns to its pile, and the pile stands up again.
+      await click('#portalRetrieve'); await sleep(1100);
+      assert.equal(await evaluate(`!!document.querySelector('.app-view.active')`),false,'Retrieving closes the Motvind page');
+      assert.equal(await evaluate(`getComputedStyle(document.querySelector('${motvind}')).visibility`),'visible','The Motvind card is back in its pile');
+      const pileBack=await bounds('.pile-card[data-card="dukkehjem"]');
+      assert.ok(Math.abs(pileBack.top-pileAtRest.top)<2,'The pile is back where it lay');
+      await assertViewport();
+      console.log('PASS: the Motvind case: frame, Oppgaven, keys, contents list, link and retrieval at',width,height);
+    }
+    assert.equal(errors.length,0,JSON.stringify(errors));
   } else if (process.argv.includes('--retrieval-only')) {
     await cdp('Emulation.setDeviceMetricsOverride', {width:1440,height:1000,deviceScaleFactor:1,mobile:false});
     await cdp('Emulation.setEmulatedMedia', {features:[{name:'prefers-reduced-motion',value:'reduce'}]});

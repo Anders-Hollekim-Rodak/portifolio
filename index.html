@@ -23,6 +23,7 @@
 <link rel="stylesheet" href="portal-depth.css">
 <link rel="stylesheet" href="portal-table.css">
 <link rel="stylesheet" href="tools-page.css">
+<link rel="stylesheet" href="motvind-case.css">
 </head>
 <body class="intro-active table-covered">
 <div class="loading-gate" id="loadingGate" aria-busy="true">
@@ -181,15 +182,14 @@
     </section>
 
     <!-- APP: MOTVIND NORGE — the case page the pile's Motvind card opens
-         when it is thrown into the portal (script.js, PILES). -->
+         when it is thrown into the portal (script.js, PILES). Its contents
+         list, pages and dots are built by motvind-case.js. -->
     <section class="app-view" id="app-motvind" data-app-view aria-labelledby="motvind-title">
       <header class="app-header">
-        <button class="back-btn" data-close type="button">← Tilbake</button>
+        <button class="back-btn" data-close type="button"><span aria-hidden="true">←</span>  Tilbake</button>
         <h2 id="motvind-title">Motvind Norge</h2>
       </header>
-      <div class="app-content">
-        <div class="detail-content" id="motvindCase"></div>
-      </div>
+      <div class="app-content mv-body" id="motvindPages"></div>
     </section>
 
     <!-- APP: ARBEIDSERFARING -->
@@ -477,6 +477,7 @@ window.addEventListener('error', (e) => {
 <script src="portal-reaction.js"></script>
 <script src="script.js"></script>
 <script src="tools-page.js"></script>
+<script src="motvind-case.js"></script>
 <script type="module" src="room-scene.js" onerror="siteReadiness.fail('room', 'room-scene.js did not load')"></script>
 <script type="module" src="portal-aura.js"></script>
 <script>

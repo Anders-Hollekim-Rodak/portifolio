@@ -1730,9 +1730,9 @@ function caseMarkup(data) {
 }
 
 // The Motvind case has a page of its own in the portal: the pile's card is
-// thrown in and the page it opens (#app-motvind) holds the whole case.
-const motvindCaseEl = document.getElementById('motvindCase');
-if (motvindCaseEl) motvindCaseEl.innerHTML = caseMarkup(PROJECT_DETAILS.motvind);
+// thrown in and opens #app-motvind, built from the Figma design by
+// motvind-case.js. PROJECT_DETAILS.motvind above keeps the earlier, longer
+// case text; it is no longer shown there.
 
 function showProjectDetail(id) {
   const data = PROJECT_DETAILS[id];
