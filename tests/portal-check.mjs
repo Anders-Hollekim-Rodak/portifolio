@@ -168,9 +168,11 @@ try {
   // pack and its button fit the page above the retrieval button.
   async function assertSealedPack() {
     const pack=await evaluate(`(() => {
+      // «Få tilbake kort» sits in the header row on a wide page and below
+      // the glass on a narrow one: either way it must not cover the button.
       const button=document.querySelector('#prosjektPakke .pack-open').getBoundingClientRect(),retrieve=document.querySelector('#portalRetrieve').getBoundingClientRect();
       return {pack:!!document.querySelector('#prosjektPakke .pack').offsetParent,deck:!!document.querySelector('#prosjekterDeck').offsetParent,
-        clear:button.height>0 && button.bottom<=retrieve.top};
+        clear:button.height>0 && (button.bottom<=retrieve.top || button.top>=retrieve.bottom || button.right<=retrieve.left || button.left>=retrieve.right)};
     })()`);
     assert.deepEqual(pack,{pack:true,deck:false,clear:true},'The Prosjekter page shows the sealed pack, not the deck');
   }
