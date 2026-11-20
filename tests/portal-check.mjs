@@ -477,7 +477,11 @@ try {
       await until(`document.querySelector('#app-motvind').classList.contains('active') && !document.querySelector('#screen').classList.contains('is-projecting')`);
       // The fonts and the landscape come from the network when the case opens.
       await until(`document.fonts.check('600 40px Fraunces') && document.fonts.check('400 14px "Space Grotesk"')`,10000).catch(() => console.log('Fonts not loaded at',width,height));
-      await evaluate(`new Promise(done => {const i=new Image();i.onload=i.onerror=done;i.src='assets/motvind/landskap-01.png';})`);
+      // The landscape the panel's background names, loaded at Figma's size.
+      const landscape=await evaluate(`new Promise(done => {
+        const url=getComputedStyle(document.querySelector('#app-motvind')).backgroundImage.match(/url\\("?([^")]+)"?\\)/)?.[1];
+        const i=new Image();i.onload=()=>done(i.naturalWidth+'x'+i.naturalHeight+' '+url.split('/').pop());i.onerror=()=>done('error '+url);i.src=url;})`);
+      assert.equal(landscape,'1824x992 landskap-01.webp','The landscape loads');
       // The pointer off the hand, or its card's enlarged peek covers the page.
       await cdp('Input.dispatchMouseEvent',{type:'mouseMoved',x:Math.round(width/2),y:Math.round(height*.1)});
       await sleep(700); await assertViewport();

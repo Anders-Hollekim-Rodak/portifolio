@@ -28,7 +28,7 @@
    and contents list, in place of the shared glass page. */
 .screen #app-motvind {
   /* Its size is set by motvind-case.js fit(); cover until then. */
-  background: #1f3133 url("assets/motvind/landskap-01.png") 100% 100% / var(--mv-scene-width, cover) no-repeat;
+  background: #1f3133 url("assets/motvind/landskap-01.webp") 100% 100% / var(--mv-scene-width, cover) no-repeat;
   border: 1px solid var(--mv-edge);
   border-radius: 20px;
   overflow: hidden;

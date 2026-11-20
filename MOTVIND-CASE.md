@@ -23,9 +23,11 @@ When the pile's Motvind card is thrown into the portal, it opens
 - **The other ten pages** show their title and «Denne siden kommer snart.»
   They come in Figma's order: 1 Innsikten, 1.1–1.4 (two pages under 1.2), 04
   Valget, 05 Svaret, 07 and 08.
-- **The landscape** is one still image, `landskap-01.png`. It is the Scene
-  of frame 01 without its text, exported from Figma at 1824 × 992. It is
-  anchored at the panel's right foot. Beside the contents list it is drawn
+- **The landscape** is one still image, `landskap-01.webp` (58 KB). It is
+  the Scene of frame 01 without its text, exported from Figma at 1824 × 992
+  as a 1.8 MB PNG. It was re-encoded as WebP at quality 0.9 in Chrome; the
+  mean difference is 1/255, and none shows at 1:1. It is fetched only once
+  the Motvind card is picked up. It is anchored at the panel's right foot. Beside the contents list it is drawn
   large enough that the moon lies under the list's glass. In this smaller
   panel the moon would otherwise be cut by the list's edge, or lie behind
   the first lines.
@@ -96,5 +98,9 @@ The panel follows the reader, not a fixed 1920 × 1080:
 - A landscape that changes from page to page, and its parallax (the
   `Panorama`, `Turbiner` and `Ild` layers).
 - Et dukkehjem.
-- A smaller landscape file: the PNG is 1.8 MB. It is fetched only once the
-  Motvind card is picked up.
+
+## Decided (2026-11-20)
+
+- The moon stays under the contents list until the landscape is split into
+  layers.
+- Forrige and Neste keep their faint glass.

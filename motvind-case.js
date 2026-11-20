@@ -15,7 +15,7 @@
   if (!view || !root) return;
 
   const ASSETS = 'assets/motvind/';
-  const LANDSCAPE = ASSETS + 'landskap-01.png';
+  const LANDSCAPE = ASSETS + 'landskap-01.webp';
   // Fraunces (the titles) and Space Grotesk 400 are only used here: their
   // stylesheet is added once the case is on its way, not with the site.
   const FONTS = 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,600,0,1&family=Space+Grotesk:wght@400&display=swap';
