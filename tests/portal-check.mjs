@@ -23,7 +23,8 @@ const server = createServer(async (req, res) => {
   if (!file.startsWith(root + sep)) {res.writeHead(403).end(); return;}
   try {
     const data = await readFile(file);
-    res.setHeader('Content-Type', ({'.html':'text/html','.css':'text/css','.js':'text/javascript'})[extname(file)] || 'application/octet-stream');
+    // SVG needs its own type, or an <img> of it shows nothing (the case's icons).
+    res.setHeader('Content-Type', ({'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.webp':'image/webp','.png':'image/png'})[extname(file)] || 'application/octet-stream');
     res.end(data);
   } catch {res.writeHead(404).end();}
 });
@@ -439,7 +440,8 @@ try {
     // The Motvind case (motvind-case.js) at the sizes of a large and a small
     // window and a phone: the pack opened, the pile's Motvind card thrown in
     // from the keyboard, then its frame, its pages and its keys, and the card
-    // back in its pile. Screenshots: .qa/motvind-*.png.
+    // back in its pile. Screenshots: .qa/motvind-*.png. The order is Oppgaven,
+    // Hva jeg gjorde and Neste prosjekt, with the process in a folder of its own.
     // Enter carries its text, so a focused button is pressed as by a keyboard.
     const press=async (key,code=key,vk=0) => {
       await cdp('Input.dispatchKeyEvent',{type:'keyDown',key,code,windowsVirtualKeyCode:vk,...(key==='Enter'?{text:'\r'}:{})});
@@ -448,10 +450,12 @@ try {
     const caseState=`(() => {
       const view=document.querySelector('#app-motvind'),page=view.querySelector('.mv-page');
       const shown=e=>!!e && getComputedStyle(e).visibility==='visible' && e.getClientRects().length>0;
-      return {page:motvindCase.current,dots:view.querySelectorAll('.mv-dot').length,rows:view.querySelectorAll('.mv-toc-item').length,
-        currentDot:[...view.querySelectorAll('.mv-dot')].findIndex(d=>d.getAttribute('aria-current')==='page'),
+      const dots=[...view.querySelectorAll('.mv-dot')].filter(d=>d.getClientRects().length>0);
+      return {page:motvindCase.current,dots:dots.length,rows:view.querySelectorAll('.mv-toc-item').length,
+        currentDot:dots.findIndex(d=>d.getAttribute('aria-current')==='page'),
+        folder:view.querySelector('.mv-toc-folder-toggle').getAttribute('aria-expanded'),
         lit:[...view.querySelectorAll('.mv-toc-item.is-lit')].map(b=>b.dataset.goto).join(),
-        prev:shown(view.querySelector('.mv-step--prev')),next:shown(view.querySelector('.mv-step--next')),
+        prev:shown(view.querySelector('.mv-pager .mv-step--prev')),next:shown(view.querySelector('.mv-pager .mv-step--next')),
         placeholder:page.dataset.placeholder==='true',status:view.querySelector('.mv-status').textContent,
         focus:document.activeElement?.className||document.activeElement?.tagName};
     })()`;
@@ -518,26 +522,68 @@ try {
       const pileOpen=await bounds('.pile-card[data-card="dukkehjem"]');
       assert.ok(pileOpen.top>pileAtRest.top+20,'The pile is laid down while the page is open');
       let s=await evaluate(caseState);
-      assert.deepEqual({page:s.page,dots:s.dots,rows:s.rows,currentDot:s.currentDot,lit:s.lit,prev:s.prev,next:s.next,placeholder:s.placeholder},
-        {page:'oppgaven',dots:11,rows:9,currentDot:0,lit:'oppgaven',prev:false,next:true,placeholder:false},'The case opens on Oppgaven');
+      // The main path: Oppgaven, Hva jeg gjorde, Neste prosjekt; «Prosessen» closed.
+      assert.deepEqual({page:s.page,dots:s.dots,rows:s.rows,currentDot:s.currentDot,folder:s.folder,lit:s.lit,prev:s.prev,next:s.next,placeholder:s.placeholder},
+        {page:'oppgaven',dots:3,rows:9,currentDot:0,folder:'false',lit:'oppgaven',prev:false,next:true,placeholder:false},'The case opens on Oppgaven, with the process closed');
       // The keys: → and ← turn the page, End and Home go to the ends.
       await press('ArrowRight','ArrowRight',39); s=await evaluate(caseState);
-      assert.deepEqual([s.page,s.currentDot,s.lit,s.prev,s.placeholder,s.status],['innsikten',1,'innsikten',true,true,'Side 2 av 11: Innsikten'],'→ goes to Innsikten');
-      await press('End','End',35); s=await evaluate(caseState);
-      assert.deepEqual([s.page,s.next,s.prev],['annerledes',false,true],'End goes to the last page, without Neste');
+      assert.deepEqual([s.page,s.currentDot,s.lit,s.prev,s.placeholder,s.status],['hva-jeg-gjorde',1,'hva-jeg-gjorde',true,false,'Side 2 av 3: Hva jeg gjorde'],'→ goes to Hva jeg gjorde');
+      // Hva jeg gjorde: the author's six points on Figma's cards, the insight
+      // with the gold edge, the Bourdieu chip, and «Se prosessen».
+      const hva=await evaluate(`(() => {const v=document.querySelector('#app-motvind'),p=v.querySelector('.mv-page');
+        return {cards:[...p.querySelectorAll('.mv-card-text')].map(e=>e.textContent),accent:[...p.querySelectorAll('.mv-card--accent .mv-card-text')].map(e=>e.textContent),
+          chip:p.querySelector('.mv-chip')?.textContent,tip:document.getElementById(p.querySelector('.mv-chip')?.getAttribute('aria-describedby'))?.textContent,
+          process:p.querySelector('[data-open-process]')?.textContent,fits:p.scrollHeight<=p.clientHeight+1};})()`);
+      assert.deepEqual(hva.cards,['Kartla fire organisasjoner i kjernekraftdebatten, og vi valgte Motvind som kunde.',
+        'Analyserte Motvinds Instagram og kommentarfelt: hvem som engasjerer seg, og hva som får sterkest respons.',
+        'Leste lederen, ordvalgene og bildene deres for å forstå hva de står for.',
+        'Landet på én innsikt: Motvind kjemper ikke for en energikilde, men for retten til natur.',
+        'Plasserte målgruppene i Bourdieus sosiale rom.',
+        'Innsikten ble fundamentet for gruppens posisjoneringsstrategi.'],'Hva jeg gjorde: the six points, as written');
+      assert.deepEqual([hva.accent.length,hva.chip,hva.tip],[1,'Bourdieu','Sosialt rom: målgruppekartet med tre personaer.'],'The insight card and Figma\'s Bourdieu chip');
+      assert.equal(hva.process.trim(),'Se prosessen  →','«Se prosessen» on the page');
+      if (width>=1366) assert.ok(hva.fits,'Hva jeg gjorde, «Se prosessen» with it, fits without a scroll at '+width+'x'+height);
+      await shot(`motvind-hva-${width}x${height}`);
+      // With the process closed, Neste passes it by.
+      await press('ArrowRight','ArrowRight',39); s=await evaluate(caseState);
+      assert.deepEqual([s.page,s.next,s.prev,s.placeholder,s.folder],['neste-prosjekt',false,true,true,'false'],'→ from Hva jeg gjorde passes the process by, to Neste prosjekt');
       await press('Home','Home',36); s=await evaluate(caseState);
       assert.deepEqual([s.page,s.prev],['oppgaven',false],'Home goes back to Oppgaven');
-      // Neste by keyboard keeps the focus on it; a sub-page lights its chapter.
-      await evaluate(`document.querySelector('#app-motvind .mv-step--next').focus()`);
-      await press('Enter','Enter',13); await press('Enter','Enter',13); s=await evaluate(caseState);
-      assert.deepEqual([s.page,s.lit,s.focus],['debatten-i-tall','innsikten,debatten-i-tall','mv-step mv-step--next'],'Neste twice: 1.1, with Innsikten lit');
-      await shot(`motvind-11-${width}x${height}`);
-      // The second 1.2 page lights the 1.2 row; the challenge's link goes to Svaret.
+      await press('End','End',35); s=await evaluate(caseState);
+      assert.equal(s.page,'neste-prosjekt','End goes to the last page');
+      await press('Home','Home',36);
+      // Neste by keyboard keeps the focus on it.
+      await evaluate(`document.querySelector('#app-motvind .mv-pager .mv-step--next').focus()`);
+      await press('Enter','Enter',13); s=await evaluate(caseState);
+      assert.deepEqual([s.page,s.focus],['hva-jeg-gjorde','mv-step mv-step--next'],'Neste by keyboard: Hva jeg gjorde, focus kept');
+      // «Se prosessen», from the keyboard: the folder opens, its first page and heading.
+      await evaluate(`document.querySelector('#app-motvind [data-open-process]').focus()`);
+      await press('Enter','Enter',13); s=await evaluate(caseState);
+      assert.deepEqual([s.page,s.folder,s.dots,s.currentDot,s.status,s.focus],['innsikten','true',11,2,'Side 3 av 11: Innsikten','mv-question mv-question--placeholder'],'«Se prosessen» opens the folder at Innsikten');
+      // Now Neste goes through the process; a sub-page lights its chapter.
+      await evaluate(`document.querySelector('#app-motvind .mv-pager .mv-step--next').focus()`);
+      await press('Enter','Enter',13); s=await evaluate(caseState);
+      assert.deepEqual([s.page,s.lit,s.focus],['debatten-i-tall','innsikten,debatten-i-tall','mv-step mv-step--next'],'Neste into 1.1, with Innsikten lit');
+      await until(`[...document.querySelectorAll('#app-motvind .mv-toc-icon')].every(i=>i.complete && i.naturalWidth>0)`,5000);
+      await sleep(200); await shot(`motvind-11-${width}x${height}`);
+      // The second 1.2 page lights the 1.2 row.
       await evaluate(`motvindCase.go('avsenderne-naert')`); s=await evaluate(caseState);
       assert.equal(s.lit,'innsikten,avsenderne','Avsenderne på nært hold lights the 1.2 row');
+      if (width>=700) {
+        // The folder from the keyboard: Enter and Space close and open it; the page stays.
+        await evaluate(`motvindCase.go('oppgaven')`);
+        await evaluate(`document.querySelector('#app-motvind .mv-toc-folder-toggle').focus()`);
+        await press('Enter','Enter',13); s=await evaluate(caseState);
+        assert.deepEqual([s.page,s.folder,s.dots],['oppgaven','false',3],'Enter closes «Prosessen»: its dots go');
+        await press(' ','Space',32); s=await evaluate(caseState);
+        assert.deepEqual([s.page,s.folder,s.dots],['oppgaven','true',11],'Space opens it again: its dots come back');
+        assert.equal(await evaluate(`getComputedStyle(document.querySelector('#motvindProcess')).display`),'flex','Its rows show');
+        await press('Enter','Enter',13);
+      }
+      // The challenge's link goes to Svaret, and opens the folder.
       await evaluate(`motvindCase.go('oppgaven')`);
       await evaluate(`document.querySelector('#app-motvind .mv-callout-link').click()`); s=await evaluate(caseState);
-      assert.deepEqual([s.page,s.lit,s.focus],['svaret','valget','mv-question mv-question--placeholder'],'«Se hvordan vi svarte på den» opens Svaret på utfordringen');
+      assert.deepEqual([s.page,s.lit,s.folder,s.focus],['svaret','valget','true','mv-question mv-question--placeholder'],'«Se hvordan vi svarte på den» opens Svaret på utfordringen');
       if (width<700) {
         // On a phone the list opens over the page and Escape folds it away.
         await click('#app-motvind .mv-toc-toggle'); await sleep(100);
@@ -558,7 +604,7 @@ try {
       const pileBack=await bounds('.pile-card[data-card="dukkehjem"]');
       assert.ok(Math.abs(pileBack.top-pileAtRest.top)<2,'The pile is back where it lay');
       await assertViewport();
-      console.log('PASS: the Motvind case: frame, Oppgaven, keys, contents list, link and retrieval at',width,height);
+      console.log('PASS: the Motvind case: frame, Oppgaven, Hva jeg gjorde, the folder Prosessen, keys, contents list, link and retrieval at',width,height);
     }
     assert.equal(errors.length,0,JSON.stringify(errors));
   } else if (process.argv.includes('--retrieval-only')) {

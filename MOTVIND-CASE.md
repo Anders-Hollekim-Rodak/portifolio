@@ -6,13 +6,28 @@ When the pile's Motvind card is thrown into the portal, it opens
 `motvind-case.js` and `motvind-case.css`, and the assets are in
 `assets/motvind/`.
 
-## What is built (step 1)
+## What is built
 
 - **The frame.** It has three parts:
   - the top bar, with the portal's own «← Tilbake» (`data-close`), the title
     and «Få tilbake kort» (`#portalRetrieve`);
-  - the contents list on the left, with every chapter and sub-page;
+  - the contents list on the left;
   - Forrige, the dots and Neste below the page.
+- **The order** (decided 2026-11-21) runs Oppgaven, Hva jeg gjorde,
+  [Prosessen], Neste prosjekt:
+  - **Prosessen** is a folder in the contents list. It is closed by default
+    and marked «Valgfritt dypdykk». It holds 1. Innsikten (1.1–1.4, with two
+    pages under 1.2) and 2. Valget og svaret (Valget, Svaret på
+    utfordringen). Its row is a button with `aria-expanded`, so it opens and
+    closes by click, Enter or Space.
+  - **While it is closed**, Neste and → pass the process by: from Hva jeg
+    gjorde they go to Neste prosjekt, and only three dots show.
+  - **While it is open**, or while one of its pages is shown, its pages are
+    in the order and its dots show.
+  - **It opens** from «Se prosessen» on Hva jeg gjorde, from its row in the
+    list, or on any of its pages (for example from «Se hvordan vi svarte på
+    den»).
+  - **It closes again** each time the case is opened.
 - **Page 01 «Oppgaven»** (frame `158:1148`). Its text is taken from Figma,
   with two corrections the author approved on 2026-11-20:
   - «emsojonelt» became «emosjonelt»;
@@ -20,9 +35,15 @@ When the pile's Motvind card is thrown into the portal, it opens
     på norsk natur.»
 
   Figma has a double space after «overbevist»; it shows as one.
-- **The other ten pages** show their title and «Denne siden kommer snart.»
-  They come in Figma's order: 1 Innsikten, 1.1–1.4 (two pages under 1.2), 04
-  Valget, 05 Svaret, 07 and 08.
+- **«Hva jeg gjorde»**. Figma has no frame for it. It holds the author's six
+  points (2026-11-21) on Figma's Funn card («Observasjon», `179:840`),
+  numbered 01–06, three abreast:
+  - the insight (04) has the gold edge of Figma's «Valg» box;
+  - card 05 has Figma's Teori chip «Bourdieu» (`179:1010`), whose tooltip
+    shows on hover, focus or tap;
+  - below the cards, «Se prosessen» opens the folder at 1. Innsikten.
+- **«Neste prosjekt»** and the process pages show their title and «Denne
+  siden kommer snart.»
 - **The landscape** is still, and made of the Figma Scene's own layers
   (re-exported 2026-11-21; the first, single 1x image looked coarse):
   - `landskap-01-himmel.webp` (38 KB): «Himmel» and the two «Kapittelglød».
@@ -50,13 +71,17 @@ When the pile's Motvind card is thrown into the portal, it opens
 ## Adding a page
 
 `MOTVIND_PAGES` in `motvind-case.js` holds one entry per dot, in reading order.
-To build a page, give its entry `blocks`. The block types are in `BLOCKS`:
+A page in the folder has `process: true`. To build a page, give its entry
+`blocks`. The block types are in `BLOCKS`:
 
 - `kicker`
 - `note`
 - `question`
 - `lead`
 - `callout` (with `lines` and an optional `link` to another page id)
+- `cards` (Figma's Funn cards: `items` with `text`, and optionally `accent` or a
+  `chip` with `text` and `tip`)
+- `process` (the button that opens the folder)
 
 Add a type to `BLOCKS` when a page needs a new one.
 
@@ -65,6 +90,7 @@ Page ids follow the content, not the Figma frame numbers:
 | Id | Figma frame |
 | --- | --- |
 | `oppgaven` | 01 Oppgaven |
+| `hva-jeg-gjorde` | (none; the author's text, 2026-11-21) |
 | `innsikten` | 1 Innsikten |
 | `debatten-i-tall` | 1.1 Debatten i tall |
 | `avsenderne` | 1.2 Avsenderne |
@@ -73,11 +99,14 @@ Page ids follow the content, not the Figma frame numbers:
 | `kulturen` | 1.4 Kulturen |
 | `valget` | 04 Valget |
 | `svaret` | 05 Svaret på utfordringen |
-| `hva-det-ble-til` | 07 Hva det ble til |
-| `annerledes` | 08 Hva jeg ville gjort annerledes |
+| `neste-prosjekt` | (none yet) |
 
 `avsenderne-naert` and `svaret` have no row of their own in the contents list.
 They light the row above them.
+
+07 «Hva det ble til» and 08 «Hva jeg ville gjort annerledes» are taken out of
+the list, the dots and the order until the author has placed them. Their
+entries are kept, commented out, under `MOTVIND_PAGES`.
 
 ## Sizes
 
@@ -94,8 +123,12 @@ The panel follows the reader, not a fixed 1920 × 1080:
 
 ## Keys and motion
 
-- ← and → turn the page.
+- ← and → turn the page, in the order of the moment (without the process
+  while it is closed).
 - Home and End go to the first and last page.
+- Enter and Space on «Prosessen» open and close the folder.
+- The Bourdieu chip shows its tooltip on focus, and Escape hides it after a
+  tap.
 - Escape folds the contents list away where it lies over the page.
 - A card thrown from the keyboard takes the focus to the page's heading.
 - Under reduced motion there is no page entrance and no dot transition.
@@ -106,16 +139,29 @@ The panel follows the reader, not a fixed 1920 × 1080:
 1920 × 1080, 1920 × 910, 1366 × 768 and 390 × 844. It saves screenshots
 `.qa/motvind-*.png`.
 
-## Parked (not in step 1)
+## Parked
 
-- The pages 1 Innsikten, 1.1–1.4, 04, 05, 07 and 08.
+- The pages 1 Innsikten, 1.1–1.4, 04, 05, 07 and 08, and the content of
+  Neste prosjekt. Where 07 and 08 go is still to be decided with the author.
 - The turning org cards (`Motvind/Org … (v2)`).
 - A landscape that changes from page to page, and its parallax (the
   `Panorama`, `Turbiner` and `Ild` layers).
 - Et dukkehjem.
+- Text in the portal is a little softer and heavier than in Figma (the
+  portal's tilt, see above). Parked by the author on 2026-11-21 as a task
+  of its own, since it touches the portal every page uses.
 
 ## Decided (2026-11-20)
 
 - The moon stays under the contents list until the landscape is split into
   layers.
 - Forrige and Neste keep their faint glass.
+
+## Decided (2026-11-21)
+
+- The landscape from Figma's own layers (see above) is approved.
+- The process lies in the folder «Prosessen», closed by default; Neste passes
+  it by while it is closed.
+- Neste prosjekt is a placeholder page for now.
+- Hva jeg gjorde: six Funn cards, the insight with the gold edge, the
+  Bourdieu chip, then «Se prosessen».

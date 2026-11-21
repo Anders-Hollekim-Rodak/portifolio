@@ -191,6 +191,46 @@
 #app-motvind .mv-toc-item.is-lit .mv-toc-bar { background: rgb(var(--mv-rgb)); }
 #app-motvind .mv-toc-item.is-lit .mv-toc-icon { opacity: 1; }
 #app-motvind .mv-toc-item:not(.is-lit):hover { color: var(--mv-body); }
+/* The folder «Prosessen»: a row like a chapter's, with a chevron where the
+   bar would be and «Valgfritt dypdykk» under its name. */
+#app-motvind .mv-toc-folder-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  text-align: left;
+  font-weight: 400;
+  font-size: 15px;
+  line-height: normal;
+  color: var(--mv-muted);
+  cursor: pointer;
+}
+#app-motvind .mv-toc-chevron { position: relative; flex: none; width: 3px; height: 19px; }
+#app-motvind .mv-toc-chevron::before {
+  content: "";
+  position: absolute;
+  left: -3px;
+  top: 5px;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform .2s ease;
+}
+#app-motvind .mv-toc-folder-toggle[aria-expanded="true"] .mv-toc-chevron::before { transform: translateY(-2px) rotate(45deg); }
+#app-motvind .mv-toc-folder-text { display: flex; flex-direction: column; gap: 3px; }
+#app-motvind .mv-toc-folder-note { font-size: 12px; color: var(--mv-muted); opacity: .8; }
+#app-motvind .mv-toc-folder-toggle:hover { color: var(--mv-body); }
+#app-motvind .mv-toc-folder-toggle.is-lit { color: var(--mv-cream); }
+#app-motvind .mv-toc-folder-toggle.is-lit .mv-toc-folder-name { font-weight: 500; }
+#app-motvind .mv-toc-folder-list { margin: 0; padding-left: 15px; }
+#app-motvind .mv-toc-folder-list[hidden],
+#app-motvind .mv-dots-process[hidden] { display: none; }
 /* Shown only where the list folds away (narrow pages, below). */
 #app-motvind .mv-toc-toggle { display: none; }
 
@@ -278,6 +318,80 @@
 }
 #app-motvind .mv-callout-link:hover { background: rgba(var(--mv-gold-rgb), .12); }
 
+/* ---- Cards: Figma's Funn card («Observasjon»), numbered. The accent card
+   has the gold edge of Figma's «Valg» box. */
+#app-motvind .mv-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(10px, 1.62cqh, 16px);
+}
+#app-motvind .mv-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: clamp(16px, 2.42cqh, 24px) 28px clamp(18px, 2.62cqh, 26px);
+  border: 1px solid #42625f;
+  border-radius: 14px;
+  background: var(--mv-box);
+}
+#app-motvind .mv-card--accent { border-color: var(--mv-gold); }
+#app-motvind .mv-card-label {
+  margin: 0;
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 1.1px;
+  color: #77aba7;
+}
+#app-motvind .mv-card-text {
+  margin: 0;
+  font-weight: 400;
+  font-size: clamp(15px, 1.5cqi, 18px);
+  line-height: 1.4;
+  color: var(--mv-cream);
+}
+#app-motvind .mv-card--accent .mv-card-text { font-weight: 500; }
+/* Figma's Teori chip; its tooltip shows on hover, on focus, or once tapped. */
+#app-motvind .mv-chip-wrap { position: relative; display: inline-flex; }
+#app-motvind .mv-chip {
+  padding: 7px 14px;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #77aba7;
+  background: transparent;
+  border: 1px dashed #77aba7;
+  border-radius: 999px;
+  cursor: help;
+}
+#app-motvind .mv-chip-tip {
+  position: absolute;
+  left: -1px;
+  top: 41px;
+  z-index: 4;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--mv-cream);
+  color: #142121;
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: nowrap;
+  visibility: hidden;
+}
+#app-motvind .mv-chip:hover,
+#app-motvind .mv-chip:focus-visible,
+#app-motvind .mv-chip.is-open { background: rgba(119, 171, 167, .15); border-style: solid; }
+#app-motvind .mv-chip:hover + .mv-chip-tip,
+#app-motvind .mv-chip:focus-visible + .mv-chip-tip,
+#app-motvind .mv-chip.is-open + .mv-chip-tip { visibility: visible; }
+/* «Se prosessen»: Neste's look, at the head of the page's foot. */
+#app-motvind .mv-process-open { align-self: flex-start; margin-top: 4px; }
+
 /* ---- Forrige, the dots, Neste */
 #app-motvind .mv-pager {
   width: 100%;
@@ -309,7 +423,8 @@
 #app-motvind .mv-step--prev:hover { background: rgba(79, 113, 109, .3); }
 #app-motvind .mv-step--next:hover { background: rgba(var(--mv-gold-rgb), .14); }
 #app-motvind .mv-step.is-hidden { visibility: hidden; }
-#app-motvind .mv-dots { display: flex; align-items: center; }
+#app-motvind .mv-dots,
+#app-motvind .mv-dots-process { display: flex; align-items: center; }
 #app-motvind .mv-dot {
   display: flex;
   align-items: center;
@@ -381,6 +496,17 @@
   #app-motvind .app-header { gap: 14px; padding-inline: 16px; }
   #app-motvind .app-header h2 { font-size: 19px; }
 }
+/* The cards: three abreast down to a small window (1366 x 768 holds them
+   and «Se prosessen» without a scroll), two on a narrower page, one on a
+   phone. */
+@container mv-main (max-width: 720px) {
+  #app-motvind .mv-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container mv-main (max-width: 480px) {
+  #app-motvind .mv-cards { grid-template-columns: minmax(0, 1fr); }
+  #app-motvind .mv-card { padding-inline: 20px; }
+  #app-motvind .mv-chip-tip { white-space: normal; width: max-content; max-width: 240px; }
+}
 /* Too narrow for Forrige, the dots and Neste in one row: the dots go above. */
 @container mv-main (max-width: 520px) {
   #app-motvind .mv-pager { flex-wrap: wrap; row-gap: 6px; }
@@ -391,5 +517,6 @@
 @media (prefers-reduced-motion: reduce) {
   #app-motvind .mv-page.is-entering > * { animation: none; }
   #app-motvind .mv-dot-mark,
+  #app-motvind .mv-toc-chevron::before,
   #app-motvind .mv-side { transition: none !important; }
 }
