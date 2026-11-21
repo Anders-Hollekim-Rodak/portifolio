@@ -24,15 +24,42 @@
   color: var(--mv-cream);
 }
 
-/* The panel: the landscape (one still image for now) under a glass top bar
-   and contents list, in place of the shared glass page. */
+/* The panel: the landscape (still, for now) under a glass top bar and
+   contents list, in place of the shared glass page. The landscape is Figma's
+   Scene in its own layers, exported from Figma:
+   - landskap-01-himmel: «Himmel» and the two «Kapittelglød». It is only
+     smooth light, so it is a small image with Figma's dithering kept
+     (scaled up here, it stays free of bands);
+   - landskap-01-fjell: everything in front of it (stars, sun, moon, ridges,
+     haze, trees, the walker), at 2x with its transparency;
+   - korn: «Korn», Figma's grain image, laid over both as in Figma: 16 %,
+     overlay (::before below).
+   All three share one box: the Scene's 1824 x 992, its size set by
+   motvind-case.js fit() (cover until then), anchored at the panel's foot. */
 .screen #app-motvind {
-  /* Its size is set by motvind-case.js fit(); cover until then. */
-  background: #1f3133 url("assets/motvind/landskap-01.webp") 100% 100% / var(--mv-scene-width, cover) no-repeat;
+  background:
+    url("assets/motvind/landskap-01-fjell.webp") 100% 100% / var(--mv-scene-width, cover) no-repeat,
+    url("assets/motvind/landskap-01-himmel.webp") 100% 100% / var(--mv-scene-width, cover) no-repeat,
+    #1f3133;
   border: 1px solid var(--mv-edge);
   border-radius: 20px;
   overflow: hidden;
   box-shadow: 0 14px 20px #0008;
+}
+/* Under the bar, the list and the page (the panel is their stacking context),
+   so their glass blurs the grain with the landscape, as in Figma. */
+.screen #app-motvind::before {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  width: var(--mv-scene-width, 100%);
+  aspect-ratio: 1824 / 992;
+  background: url("assets/motvind/korn.webp") 50% 50% / cover no-repeat;
+  opacity: .16;
+  mix-blend-mode: overlay;
+  pointer-events: none;
 }
 
 /* ---- Top bar: Tilbake, the title, and the portal's own «Få tilbake kort»

@@ -477,11 +477,14 @@ try {
       await until(`document.querySelector('#app-motvind').classList.contains('active') && !document.querySelector('#screen').classList.contains('is-projecting')`);
       // The fonts and the landscape come from the network when the case opens.
       await until(`document.fonts.check('600 40px Fraunces') && document.fonts.check('400 14px "Space Grotesk"')`,10000).catch(() => console.log('Fonts not loaded at',width,height));
-      // The landscape the panel's background names, loaded at Figma's size.
-      const landscape=await evaluate(`new Promise(done => {
-        const url=getComputedStyle(document.querySelector('#app-motvind')).backgroundImage.match(/url\\("?([^")]+)"?\\)/)?.[1];
-        const i=new Image();i.onload=()=>done(i.naturalWidth+'x'+i.naturalHeight+' '+url.split('/').pop());i.onerror=()=>done('error '+url);i.src=url;})`);
-      assert.equal(landscape,'1824x992 landskap-01.webp','The landscape loads');
+      // The landscape's layers the panel names (front, sky, and the grain over
+      // them), loaded at their exported sizes: the front at 2x Figma's 1824 x 992.
+      const landscape=await evaluate(`Promise.all([
+        ...getComputedStyle(document.querySelector('#app-motvind')).backgroundImage.matchAll(/url\\("?([^")]+)"?\\)/g),
+        ...getComputedStyle(document.querySelector('#app-motvind'),'::before').backgroundImage.matchAll(/url\\("?([^")]+)"?\\)/g)
+      ].map(m => new Promise(done => {const i=new Image();i.onload=()=>done(m[1].split('/').pop()+' '+i.naturalWidth+'x'+i.naturalHeight);i.onerror=()=>done('error '+m[1]);i.src=m[1];})))`);
+      assert.deepEqual(landscape,['landskap-01-fjell.webp 3648x1984','landskap-01-himmel.webp 456x248','korn.webp 1536x1024'],'The landscape\'s layers load');
+      assert.equal(await evaluate(`(() => {const s=getComputedStyle(document.querySelector('#app-motvind'),'::before');return s.mixBlendMode+' '+s.opacity;})()`),'overlay 0.16','The grain lies over the landscape as in Figma');
       // The pointer off the hand, or its card's enlarged peek covers the page.
       await cdp('Input.dispatchMouseEvent',{type:'mouseMoved',x:Math.round(width/2),y:Math.round(height*.1)});
       await sleep(700); await assertViewport();

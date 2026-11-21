@@ -23,14 +23,29 @@ When the pile's Motvind card is thrown into the portal, it opens
 - **The other ten pages** show their title and «Denne siden kommer snart.»
   They come in Figma's order: 1 Innsikten, 1.1–1.4 (two pages under 1.2), 04
   Valget, 05 Svaret, 07 and 08.
-- **The landscape** is one still image, `landskap-01.webp` (58 KB). It is
-  the Scene of frame 01 without its text, exported from Figma at 1824 × 992
-  as a 1.8 MB PNG. It was re-encoded as WebP at quality 0.9 in Chrome; the
-  mean difference is 1/255, and none shows at 1:1. It is fetched only once
-  the Motvind card is picked up. It is anchored at the panel's right foot. Beside the contents list it is drawn
-  large enough that the moon lies under the list's glass. In this smaller
-  panel the moon would otherwise be cut by the list's edge, or lie behind
-  the first lines.
+- **The landscape** is still, and made of the Figma Scene's own layers
+  (re-exported 2026-11-21; the first, single 1x image looked coarse):
+  - `landskap-01-himmel.webp` (38 KB): «Himmel» and the two «Kapittelglød».
+    It holds only smooth light. It is exported at 2x and reduced to 456 × 248
+    with Figma's dithering kept, so it stays free of bands when it is scaled
+    up. At 2x as lossy WebP it showed rings, and as SVG it showed Chrome's
+    blur in steps;
+  - `landskap-01-fjell.webp` (490 KB): everything in front of the sky, at
+    2x (3648 × 1984) with transparency. The transparency comes from two
+    exports, over black and over white;
+  - `korn.webp` (127 KB): Figma's «Korn» image, laid over both at 16 %,
+    overlay, as in Figma (`#app-motvind::before`).
+
+  Together they match Figma's own render of the Scene within one colour level
+  on average. They are fetched only once the Motvind card is picked up. They
+  are anchored at the panel's right foot. Beside the contents list they are
+  drawn large enough that the moon lies under the list's glass. In this
+  smaller panel the moon would otherwise be cut by the list's edge, or lie
+  behind the first lines.
+- **Known difference from Figma:** text in the portal is a little softer and
+  heavier than in Figma. The page stands tilted in the 3D room and is
+  redrawn, and it stays soft even without the lift. The same text drawn flat
+  is as sharp as Figma's. This lies in the portal, not in the case.
 
 ## Adding a page
 

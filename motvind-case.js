@@ -15,7 +15,8 @@
   if (!view || !root) return;
 
   const ASSETS = 'assets/motvind/';
-  const LANDSCAPE = ASSETS + 'landskap-01.webp';
+  // The landscape's layers, back to front (motvind-case.css).
+  const LANDSCAPE = ['landskap-01-himmel.webp', 'landskap-01-fjell.webp', 'korn.webp'].map((file) => ASSETS + file);
   // Fraunces (the titles) and Space Grotesk 400 are only used here: their
   // stylesheet is added once the case is on its way, not with the site.
   const FONTS = 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,600,0,1&family=Space+Grotesk:wght@400&display=swap';
@@ -252,9 +253,11 @@
     if (warmed) return;
     warmed = true;
     document.head.append(el('link', {rel: 'stylesheet', href: FONTS}));
-    const image = new Image();
-    image.decoding = 'async';
-    image.src = LANDSCAPE;
+    LANDSCAPE.forEach((src) => {
+      const image = new Image();
+      image.decoding = 'async';
+      image.src = src;
+    });
     if (document.fonts?.load) {
       ['600 40px Fraunces', '400 14px "Space Grotesk"', '500 15px "Space Grotesk"', '700 11px "Space Grotesk"']
         .forEach((font) => document.fonts.load(font).catch(() => {}));
